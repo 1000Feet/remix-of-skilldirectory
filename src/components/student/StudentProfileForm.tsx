@@ -26,21 +26,10 @@ const profileFormSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-interface StudentProfile {
-  id: string;
-  user_id: string;
-  name: string | null;
-  email: string;
-  phone: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export function StudentProfileForm() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [profileId, setProfileId] = useState<string | null>(null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -63,14 +52,13 @@ export function StudentProfileForm() {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error loading profile:', error);
         toast.error('Failed to load profile');
         return;
       }
 
       if (profile) {
-        setProfileId(profile.id);
         form.reset({
           name: profile.name || "",
           email: user.email || "",
@@ -100,40 +88,24 @@ export function StudentProfileForm() {
 
       setLoading(true);
 
-      let result;
-      // If we have a profileId, update the existing profile
-      if (profileId) {
-        result = await supabase
-          .from('student_profiles')
-          .update({
-            name: data.name,
-            phone: data.phone,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', profileId)
-          .select()
-          .single();
-      } else {
-        // If no profile exists, create a new one
-        result = await supabase
-          .from('student_profiles')
-          .insert([{
-            user_id: user.id,
-            name: data.name,
-            email: user.email,
-            phone: data.phone,
-          }])
-          .select()
-          .single();
-      }
+      // Update the existing profile based on user_id
+      const { data: updatedProfile, error } = await supabase
+        .from('student_profiles')
+        .update({
+          name: data.name,
+          phone: data.phone,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id) // Update based on user_id
+        .select()
+        .single();
 
-      if (result.error) {
-        console.error('Error saving profile:', result.error);
-        toast.error('Failed to save profile');
+      if (error) {
+        console.error('Error updating profile:', error);
+        toast.error('Failed to update profile');
         return;
       }
 
-      setProfileId(result.data.id);
       toast.success('Profile updated successfully');
       await loadProfile(); // Reload the profile data
     } catch (error) {
