@@ -23,7 +23,7 @@ import {
   Hammer,
   Waves
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 const categories = [
   { name: "Animals", icon: Dog },
