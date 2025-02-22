@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -160,7 +161,13 @@ const EducatorProfile = () => {
               />
             </div>
             <div className="space-y-6">
-              <ContactInfo profile={profile} />
+              <ContactInfo
+                address={profile.address}
+                phone={profile.phone}
+                email={profile.email}
+                website={profile.website}
+                social={profile.social}
+              />
               <LessonRequestForm 
                 educatorProfileId={profile.id} 
                 educatorName={profile.name} 

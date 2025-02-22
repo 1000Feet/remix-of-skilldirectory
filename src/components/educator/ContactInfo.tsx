@@ -1,5 +1,6 @@
 
 import { Card } from "@/components/ui/card";
+import { Facebook, Instagram, Youtube } from "lucide-react";
 
 interface Social {
   facebook: string;
@@ -51,7 +52,7 @@ export const ContactInfo = ({ address, phone, email, website, social }: ContactI
         )}
       </div>
 
-      {social && (
+      {social && Object.values(social).some(value => value) && (
         <div className="mt-6">
           <h3 className="font-medium mb-3">Social Media</h3>
           <div className="flex gap-4">
@@ -60,9 +61,10 @@ export const ContactInfo = ({ address, phone, email, website, social }: ContactI
                 href={social.facebook}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
+                className="text-primary hover:text-primary/80 flex items-center gap-2"
               >
-                Facebook
+                <Facebook className="h-5 w-5" />
+                <span>Facebook</span>
               </a>
             )}
             {social.instagram && (
@@ -70,9 +72,10 @@ export const ContactInfo = ({ address, phone, email, website, social }: ContactI
                 href={social.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
+                className="text-primary hover:text-primary/80 flex items-center gap-2"
               >
-                Instagram
+                <Instagram className="h-5 w-5" />
+                <span>Instagram</span>
               </a>
             )}
             {social.youtube && (
@@ -80,9 +83,10 @@ export const ContactInfo = ({ address, phone, email, website, social }: ContactI
                 href={social.youtube}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline"
+                className="text-primary hover:text-primary/80 flex items-center gap-2"
               >
-                YouTube
+                <Youtube className="h-5 w-5" />
+                <span>YouTube</span>
               </a>
             )}
           </div>
