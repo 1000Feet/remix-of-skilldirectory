@@ -44,8 +44,6 @@ export function StudentProfileForm() {
     try {
       if (!user) return;
 
-      setIsInitialLoading(true);
-      
       const { data: profile, error } = await supabase
         .from('student_profiles')
         .select('*')
@@ -79,68 +77,39 @@ export function StudentProfileForm() {
     }
   }, [user]);
 
-  async function onSubmit(data: ProfileFormValues) {
-    try {
-      if (!user) {
-        toast.error('Please log in to update your profile');
-        return;
-      }
+  const onSubmit = async (data: ProfileFormValues) => {
+    if (!user) {
+      toast.error('Please log in to update your profile');
+      return;
+    }
 
+    try {
       setLoading(true);
 
-      // First try to update the profile
-      const { data: existingProfile, error: checkError } = await supabase
+      const { error: upsertError } = await supabase
         .from('student_profiles')
-        .select()
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .upsert({
+          user_id: user.id,
+          email: user.email || '',
+          name: data.name,
+          phone: data.phone,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
 
-      if (checkError) {
-        console.error('Error checking profile:', checkError);
-        toast.error('Failed to check profile');
-        return;
-      }
-
-      let result;
-      if (existingProfile) {
-        // Update existing profile
-        result = await supabase
-          .from('student_profiles')
-          .update({
-            name: data.name,
-            phone: data.phone,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', user.id)
-          .select();
-      } else {
-        // Create new profile
-        result = await supabase
-          .from('student_profiles')
-          .insert({
-            user_id: user.id,
-            email: user.email || '',
-            name: data.name,
-            phone: data.phone
-          })
-          .select();
-      }
-
-      if (result.error) {
-        console.error('Error saving profile:', result.error);
-        toast.error('Failed to save profile');
-        return;
+      if (upsertError) {
+        throw upsertError;
       }
 
       toast.success('Profile updated successfully');
-      await loadProfile(); // Reload the profile data
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to update profile');
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   if (!user) return null;
 
