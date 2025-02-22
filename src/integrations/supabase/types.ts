@@ -115,11 +115,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lesson_requests_educator_id_fkey"
+            columns: ["educator_id"]
+            isOneToOne: false
+            referencedRelation: "educator_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "lesson_requests_educator_profile_id_fkey"
             columns: ["educator_profile_id"]
             isOneToOne: false
             referencedRelation: "educator_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }

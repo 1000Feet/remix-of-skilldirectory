@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { MessageCircle } from 'lucide-react';
@@ -8,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface Student {
-  id: string;
+  user_id: string;
   name: string | null;
   email: string;
   phone: string | null;
@@ -48,8 +49,8 @@ export function LessonRequests() {
           .from('lesson_requests')
           .select(`
             *,
-            student:student_profiles(
-              id,
+            student:student_profiles!lesson_requests_student_id_fkey(
+              user_id,
               name,
               email,
               phone
@@ -62,6 +63,7 @@ export function LessonRequests() {
           throw error;
         }
 
+        console.log('Fetched lesson requests:', data);
         setRequests(data || []);
         setError(null);
       } catch (error: any) {
