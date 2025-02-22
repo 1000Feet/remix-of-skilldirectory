@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,7 +86,8 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
         ai_voice_agent: formData.ai_voice_agent,
         categories: formData.categories,
         tags: formData.tags,
-        subscription_tier: formData.subscription_tier
+        subscription_tier: formData.subscription_tier,
+        updated_at: new Date().toISOString()
       };
 
       let result;
@@ -120,7 +122,7 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
       }
     } catch (error: any) {
       console.error('Profile operation error:', error);
-      toast.error(error.message || 'Failed to save profile. Please try again.');
+      toast.error(error.message || 'Failed to save profile');
     } finally {
       setIsSubmitting(false);
     }
