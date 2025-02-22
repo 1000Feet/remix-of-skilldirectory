@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { UserType, StudentProfile, EducatorProfile } from '@/lib/auth-types';
 import { Database } from '@/integrations/supabase/types';
@@ -17,8 +16,8 @@ export const useProfileManagement = () => {
         const { data: studentProfile, error: studentError } = await supabase
           .from('student_profiles')
           .select('*')
-          .eq('id', userId)
-          .maybeSingle<StudentProfileRow>();
+          .eq('user_id', userId)
+          .maybeSingle();
 
         if (studentError) {
           console.error('Error fetching student profile:', studentError);
@@ -30,9 +29,11 @@ export const useProfileManagement = () => {
             id: studentProfile.id,
             email: studentProfile.email,
             user_type: 'student',
-            first_name: studentProfile.first_name,
-            last_name: studentProfile.last_name,
-            avatar_url: studentProfile.avatar_url
+            name: studentProfile.name,
+            phone: studentProfile.phone,
+            created_at: studentProfile.created_at,
+            updated_at: studentProfile.updated_at,
+            user_id: studentProfile.user_id
           };
         }
       } else {
@@ -67,16 +68,20 @@ export const useProfileManagement = () => {
     }
   };
 
-  const updateProfile = async (userId: string, userType: UserType, profileData: Partial<StudentProfile | EducatorProfile>): Promise<StudentProfile | EducatorProfile> => {
+  const updateProfile = async (userId: string, userType: UserType, profileData: any): Promise<StudentProfile | EducatorProfile> => {
     try {
       console.log(`Updating ${userType} profile for user ${userId}`, profileData);
 
       if (userType === 'student') {
         const { data, error } = await supabase
           .from('student_profiles')
-          .update(profileData)
-          .eq('id', userId)
-          .select('*')
+          .update({
+            name: profileData.name,
+            phone: profileData.phone,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .select()
           .single();
 
         if (error) throw error;
@@ -85,9 +90,11 @@ export const useProfileManagement = () => {
           id: data.id,
           email: data.email,
           user_type: 'student',
-          first_name: data.first_name,
-          last_name: data.last_name,
-          avatar_url: data.avatar_url
+          name: data.name,
+          phone: data.phone,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          user_id: data.user_id
         };
       } else {
         const { data, error } = await supabase
@@ -115,40 +122,31 @@ export const useProfileManagement = () => {
     }
   };
 
-  const createProfile = async (userId: string, userType: UserType, profileData: any): Promise<StudentProfile | EducatorProfile> => {
+  const createProfile = async (userId: string, userType: UserType, data: any): Promise<void> => {
     try {
-      console.log(`Creating ${userType} profile for user ${userId}`, profileData);
+      console.log(`Creating ${userType} profile for user ${userId}`, data);
 
       if (userType === 'student') {
-        const { data, error } = await supabase
+        const studentData = {
+          user_id: userId,
+          name: data.name || null,
+          phone: data.phone || null,
+          email: data.email,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase
           .from('student_profiles')
-          .insert({
-            id: userId,
-            email: profileData.email,
-            user_type: 'student',
-            first_name: profileData.first_name || null,
-            last_name: profileData.last_name || null,
-            avatar_url: profileData.avatar_url || null
-          })
-          .select('*')
-          .single();
+          .insert([studentData]);
 
         if (error) throw error;
-
-        return {
-          id: data.id,
-          email: data.email,
-          user_type: 'student',
-          first_name: data.first_name,
-          last_name: data.last_name,
-          avatar_url: data.avatar_url
-        };
       } else {
-        const { data, error } = await supabase
+        const { data: educatorProfile, error: educatorError } = await supabase
           .from('educator_profiles')
           .insert({
             user_id: userId,
-            email: profileData.email,
+            email: data.email,
             name: '', // Required field, start with empty string
             description: null,
             image: null,
@@ -169,18 +167,18 @@ export const useProfileManagement = () => {
           .select('*')
           .single();
 
-        if (error) {
-          console.error('Error creating educator profile:', error);
-          throw error;
+        if (educatorError) {
+          console.error('Error creating educator profile:', educatorError);
+          throw educatorError;
         }
 
         return {
-          id: data.id,
-          email: data.email,
+          id: educatorProfile.id,
+          email: educatorProfile.email,
           user_type: 'educator',
-          name: data.name,
-          description: data.description,
-          image: data.image
+          name: educatorProfile.name,
+          description: educatorProfile.description,
+          image: educatorProfile.image
         };
       }
     } catch (error: any) {

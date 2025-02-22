@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,136 +18,181 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const profileFormSchema = z.object({
-  first_name: z.string().min(1, "First name is required"),
-  last_name: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address").optional(),
   phone: z.string().min(1, "Phone number is required"),
-  address: z.string().min(1, "Address is required"),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 interface StudentProfile {
   id: string;
-  first_name: string | null;
-  last_name: string | null;
+  user_id: string;
+  name: string | null;
   email: string;
   phone: string | null;
-  address: string | null;
-  avatar_url: string | null;
-  user_type: 'student' | 'educator';
+  created_at: string;
+  updated_at: string;
 }
 
 export function StudentProfileForm() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      first_name: "",
-      last_name: "",
-      email: "",
+      name: "",
+      email: user?.email || "",
       phone: "",
-      address: "",
     },
   });
 
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchProfile = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("student_profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (error) throw error;
-
-        if (data) {
-          form.reset({
-            first_name: data.first_name || "",
-            last_name: data.last_name || "",
-            email: data.email || "",
-            phone: data.phone || "",
-            address: data.address || "",
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-        toast.error("Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [user, form]);
-
-  const onSubmit = async (values: ProfileFormValues) => {
-    if (!user) return;
-
+  const loadProfile = async () => {
     try {
-      const { error } = await supabase
-        .from("student_profiles")
-        .update({
-          first_name: values.first_name,
-          last_name: values.last_name,
-          email: values.email,
-          phone: values.phone,
-          address: values.address,
-        })
-        .eq("id", user.id);
+      if (!user) return;
 
-      if (error) throw error;
+      setIsInitialLoading(true);
+      
+      const { data: profile, error } = await supabase
+        .from('student_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      toast.success("Profile updated successfully");
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading profile:', error);
+        toast.error('Failed to load profile');
+        return;
+      }
+
+      if (profile) {
+        setProfileId(profile.id);
+        form.reset({
+          name: profile.name || "",
+          email: user.email || "",
+          phone: profile.phone || "",
+        });
+      }
     } catch (error) {
-      console.error("Error updating profile:", error);
-      toast.error("Failed to update profile");
+      console.error('Error:', error);
+      toast.error('Failed to load profile');
+    } finally {
+      setIsInitialLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  async function onSubmit(data: ProfileFormValues) {
+    try {
+      if (!user) {
+        toast.error('Please log in to update your profile');
+        return;
+      }
+
+      setLoading(true);
+
+      // Check if profile exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('student_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking profile:', checkError);
+        toast.error('Failed to update profile');
+        return;
+      }
+
+      let result;
+
+      if (existingProfile) {
+        // Update existing profile
+        result = await supabase
+          .from('student_profiles')
+          .update({
+            name: data.name,
+            phone: data.phone,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingProfile.id)
+          .select()
+          .single();
+      } else {
+        // Create new profile
+        result = await supabase
+          .from('student_profiles')
+          .insert([{
+            user_id: user.id,
+            name: data.name,
+            email: user.email,
+            phone: data.phone,
+          }])
+          .select()
+          .single();
+      }
+
+      if (result.error) {
+        console.error('Error saving profile:', result.error);
+        toast.error('Failed to save profile');
+        return;
+      }
+
+      setProfileId(result.data.id);
+      toast.success('Profile updated successfully');
+      await loadProfile(); // Reload the profile data
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (!user) return null;
+
+  if (isInitialLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile Information</CardTitle>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center min-h-[200px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Student Profile</CardTitle>
+        <CardTitle>Profile Information</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="first_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="last_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter your name" {...field} disabled={loading} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -157,7 +201,7 @@ export function StudentProfileForm() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="john@example.com" {...field} />
+                    <Input {...field} disabled placeholder="Email" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -169,31 +213,24 @@ export function StudentProfileForm() {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Phone</FormLabel>
+                  <FormLabel>Phone Number</FormLabel>
                   <FormControl>
-                    <Input type="tel" placeholder="+1 (555) 000-0000" {...field} />
+                    <Input placeholder="Enter your phone number" {...field} disabled={loading} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl>
-                    <Input placeholder="123 Main St, City, State, ZIP" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Saving...</span>
+                </div>
+              ) : (
+                "Save Changes"
               )}
-            />
-
-            <Button type="submit" className="w-full">
-              Update Profile
             </Button>
           </form>
         </Form>

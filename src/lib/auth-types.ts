@@ -1,4 +1,3 @@
-
 export type UserType = 'student' | 'educator';
 
 export interface BaseProfile {
@@ -9,9 +8,13 @@ export interface BaseProfile {
 
 export interface StudentProfile extends BaseProfile {
   user_type: 'student';
-  first_name: string | null;
-  last_name: string | null;
-  avatar_url: string | null;
+  id: string;
+  name: string | null;
+  phone: string | null;
+  email: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
 }
 
 export interface EducatorProfile extends BaseProfile {
@@ -31,4 +34,3 @@ export interface AuthUser {
     user_type: UserType;
   };
 }
-

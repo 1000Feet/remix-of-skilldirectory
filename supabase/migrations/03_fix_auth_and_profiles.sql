@@ -49,23 +49,33 @@ ALTER TABLE public.student_profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.student_profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.student_profiles;
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.student_profiles;
+DROP POLICY IF EXISTS "Users can delete own profile" ON public.student_profiles;
+DROP POLICY IF EXISTS "Students can view own profile" ON public.student_profiles;
+DROP POLICY IF EXISTS "Students can update own profile" ON public.student_profiles;
+DROP POLICY IF EXISTS "Students can insert own profile" ON public.student_profiles;
+DROP POLICY IF EXISTS "Students can delete own profile" ON public.student_profiles;
 
--- Create new policies
-CREATE POLICY "Public profiles are viewable by everyone" 
-    ON public.student_profiles FOR SELECT 
-    USING (true);
+-- Create new policies with simplified permissions
+CREATE POLICY "Enable read for authenticated users"
+ON public.student_profiles FOR SELECT
+TO authenticated
+USING (true);
 
-CREATE POLICY "Users can update own profile" 
-    ON public.student_profiles FOR UPDATE 
-    USING (auth.uid() = user_id);
+CREATE POLICY "Enable insert for authenticated users"
+ON public.student_profiles FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own profile" 
-    ON public.student_profiles FOR INSERT 
-    WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Enable update for users based on user_id"
+ON public.student_profiles FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
 
--- Create indexes
-CREATE UNIQUE INDEX IF NOT EXISTS student_profiles_user_id_key ON public.student_profiles(user_id);
-CREATE INDEX IF NOT EXISTS student_profiles_email_idx ON public.student_profiles(email);
+CREATE POLICY "Enable delete for users based on user_id"
+ON public.student_profiles FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
 
 -- Grant necessary permissions
 GRANT ALL ON public.student_profiles TO postgres;
@@ -98,3 +108,7 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_new_user();
+
+-- Create indexes
+CREATE UNIQUE INDEX IF NOT EXISTS student_profiles_user_id_key ON public.student_profiles(user_id);
+CREATE INDEX IF NOT EXISTS student_profiles_email_idx ON public.student_profiles(email);

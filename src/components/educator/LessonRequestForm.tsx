@@ -42,15 +42,13 @@ export function LessonRequestForm({ educatorProfileId, educatorName }: LessonReq
       // Get the student profile ID
       const { data: studentData, error: studentError } = await supabase
         .from('student_profiles')
-        .select('id, user_id')
+        .select('id')
         .eq('user_id', user.id)
         .single();
 
       if (studentError || !studentData) {
         throw new Error('Could not find your student profile');
       }
-
-      console.log('Found student profile:', studentData);
 
       // Get the educator profile
       const { data: educatorData, error: educatorError } = await supabase
