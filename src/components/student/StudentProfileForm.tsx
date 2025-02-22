@@ -43,7 +43,9 @@ export function StudentProfileForm() {
   const loadProfile = async () => {
     try {
       if (!user) return;
-
+      
+      setIsInitialLoading(true); // Set loading state before fetching
+      
       const { data: profile, error } = await supabase
         .from('student_profiles')
         .select('*')
@@ -86,6 +88,7 @@ export function StudentProfileForm() {
     try {
       setLoading(true);
 
+      // Use upsert to handle both insert and update cases
       const { error: upsertError } = await supabase
         .from('student_profiles')
         .upsert({
@@ -99,6 +102,7 @@ export function StudentProfileForm() {
         });
 
       if (upsertError) {
+        console.error('Error saving profile:', upsertError);
         throw upsertError;
       }
 
