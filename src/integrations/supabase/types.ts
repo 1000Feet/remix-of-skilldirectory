@@ -121,41 +121,34 @@ export type Database = {
             referencedRelation: "educator_profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "lesson_requests_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "student_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       student_profiles: {
         Row: {
-          created_at: string | null
-          email: string | null
+          created_at: string
+          email: string
           id: string
           name: string | null
           phone: string | null
-          updated_at: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          created_at?: string | null
-          email?: string | null
+          created_at?: string
+          email: string
           id?: string
           name?: string | null
           phone?: string | null
-          updated_at?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          created_at?: string | null
-          email?: string | null
+          created_at?: string
+          email?: string
           id?: string
           name?: string | null
           phone?: string | null
-          updated_at?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

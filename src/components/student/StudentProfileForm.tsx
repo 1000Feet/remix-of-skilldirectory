@@ -88,21 +88,47 @@ export function StudentProfileForm() {
 
       setLoading(true);
 
-      // Update the existing profile based on user_id
-      const { data: updatedProfile, error } = await supabase
+      // First try to update the profile
+      const { data: existingProfile, error: checkError } = await supabase
         .from('student_profiles')
-        .update({
-          name: data.name,
-          phone: data.phone,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id) // Update based on user_id
         .select()
-        .single();
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error updating profile:', error);
-        toast.error('Failed to update profile');
+      if (checkError) {
+        console.error('Error checking profile:', checkError);
+        toast.error('Failed to check profile');
+        return;
+      }
+
+      let result;
+      if (existingProfile) {
+        // Update existing profile
+        result = await supabase
+          .from('student_profiles')
+          .update({
+            name: data.name,
+            phone: data.phone,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id)
+          .select();
+      } else {
+        // Create new profile
+        result = await supabase
+          .from('student_profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email || '',
+            name: data.name,
+            phone: data.phone
+          })
+          .select();
+      }
+
+      if (result.error) {
+        console.error('Error saving profile:', result.error);
+        toast.error('Failed to save profile');
         return;
       }
 
