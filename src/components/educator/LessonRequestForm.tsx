@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,20 +41,20 @@ export function LessonRequestForm({ educatorProfileId, educatorName }: LessonReq
       setLoading(true);
 
       // Get the student profile ID
-      const { data: studentData, error: studentError } = await supabase
+      const { data: studentProfile, error: studentError } = await supabase
         .from('student_profiles')
         .select('id')
         .eq('user_id', user.id)
         .single();
 
-      if (studentError || !studentData) {
+      if (studentError || !studentProfile) {
         throw new Error('Could not find your student profile');
       }
 
       // Get the educator profile
       const { data: educatorData, error: educatorError } = await supabase
         .from('educator_profiles')
-        .select('id, user_id')
+        .select('user_id')
         .eq('id', educatorProfileId)
         .single();
 
@@ -66,14 +67,12 @@ export function LessonRequestForm({ educatorProfileId, educatorName }: LessonReq
         .from('lesson_requests')
         .insert([
           {
-            student_id: studentData.id,
+            student_id: user.id, // Using auth.uid() for RLS policy
             educator_id: educatorData.user_id,
             educator_profile_id: educatorProfileId,
             proposed_date: date.toISOString(),
             message: message.trim(),
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            status: 'pending'
           }
         ]);
 
