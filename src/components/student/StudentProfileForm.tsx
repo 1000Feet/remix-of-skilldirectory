@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -99,23 +100,9 @@ export function StudentProfileForm() {
 
       setLoading(true);
 
-      // Check if profile exists
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('student_profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Error checking profile:', checkError);
-        toast.error('Failed to update profile');
-        return;
-      }
-
       let result;
-
-      if (existingProfile) {
-        // Update existing profile
+      // If we have a profileId, update the existing profile
+      if (profileId) {
         result = await supabase
           .from('student_profiles')
           .update({
@@ -123,11 +110,11 @@ export function StudentProfileForm() {
             phone: data.phone,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', existingProfile.id)
+          .eq('id', profileId)
           .select()
           .single();
       } else {
-        // Create new profile
+        // If no profile exists, create a new one
         result = await supabase
           .from('student_profiles')
           .insert([{

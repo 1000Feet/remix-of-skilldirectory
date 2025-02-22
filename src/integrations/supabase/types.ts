@@ -132,6 +132,36 @@ export type Database = {
       }
       student_profiles: {
         Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string | null
+          phone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      student_profiles_duplicate: {
+        Row: {
           address: string | null
           avatar_url: string | null
           created_at: string
@@ -141,6 +171,7 @@ export type Database = {
           last_name: string | null
           phone: string | null
           updated_at: string
+          user_id: string
           user_type: Database["public"]["Enums"]["user_type"]
         }
         Insert: {
@@ -149,10 +180,11 @@ export type Database = {
           created_at?: string
           email: string
           first_name?: string | null
-          id: string
+          id?: string
           last_name?: string | null
           phone?: string | null
           updated_at?: string
+          user_id: string
           user_type?: Database["public"]["Enums"]["user_type"]
         }
         Update: {
@@ -165,6 +197,7 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           updated_at?: string
+          user_id?: string
           user_type?: Database["public"]["Enums"]["user_type"]
         }
         Relationships: []
@@ -177,6 +210,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      service_status: "draft" | "published" | "archived"
       user_type: "student" | "educator"
     }
     CompositeTypes: {
