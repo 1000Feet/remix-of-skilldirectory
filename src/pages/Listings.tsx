@@ -11,6 +11,8 @@ import {
   PaginationLink, 
   PaginationNext
 } from "@/components/ui/pagination";
+import { useDistance } from "@/hooks/useDistance";
+import { GeocodingTest } from "@/components/GeocodingTest";
 import {
   Music,
   Palette,
@@ -46,6 +48,7 @@ interface EducatorProfile {
   image: string;
   categories: string[];
   address: string;
+  distance?: string;
 }
 
 const Listings = () => {
@@ -53,6 +56,7 @@ const Listings = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [educatorProfiles, setEducatorProfiles] = useState<EducatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const { calculateDistanceFromStudent, loading: distanceLoading, isAuthenticated } = useDistance();
 
   useEffect(() => {
     fetchEducatorProfiles();
@@ -64,6 +68,9 @@ const Listings = () => {
       let query = supabase
         .from('educator_profiles')
         .select('id, name, description, image, categories, address')
+        .not('image', 'is', null)
+        .not('name', 'is', null)
+        .not('name', 'eq', '')
         .range(0, 9);
 
       if (selectedCategory) {
@@ -76,7 +83,15 @@ const Listings = () => {
         throw error;
       }
 
-      setEducatorProfiles(data || []);
+      // Only calculate distances if user is authenticated
+      const profilesWithDistance = await Promise.all(
+        (data || []).map(async (profile) => ({
+          ...profile,
+          distance: isAuthenticated ? await calculateDistanceFromStudent(profile.address) : null
+        }))
+      );
+
+      setEducatorProfiles(profilesWithDistance);
     } catch (error) {
       console.error('Error fetching educator profiles:', error);
     } finally {
@@ -95,44 +110,25 @@ const Listings = () => {
           onSelectCategory={setSelectedCategory}
         />
         <div className="flex-1">
+          <GeocodingTest />
           {loading ? (
             <div className="text-center py-8">Loading...</div>
           ) : educatorProfiles.length === 0 ? (
             <div className="text-center py-8">No educator profiles found</div>
           ) : (
-            educatorProfiles.map((profile) => (
-              <BusinessCard
-                key={profile.id}
-                id={profile.id}
-                name={profile.name}
-                description={profile.description}
-                distance="Calculating..."
-                image={profile.image}
-                educator_id={profile.id}
-                educator_profile_id={profile.id}
-              />
-            ))
+            <div className="space-y-6">
+              {educatorProfiles.map((profile) => (
+                <BusinessCard
+                  key={profile.id}
+                  name={profile.name}
+                  description={profile.description}
+                  image={profile.image}
+                  distance={profile.distance || 'N/A'}
+                  educator_profile_id={profile.id}
+                />
+              ))}
+            </div>
           )}
-
-          <Pagination className="mt-8">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationLink isActive>1</PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationLink>2</PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationLink>3</PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationLink>4</PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext href="#" />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
         </div>
       </main>
       <Footer />

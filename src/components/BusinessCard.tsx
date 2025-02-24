@@ -53,9 +53,11 @@ export function BusinessCard({
           <p className="text-muted-foreground line-clamp-2">{description}</p>
         </div>
         <div className="flex items-center justify-between mt-4">
-          <span className="inline-flex items-center rounded-full bg-gray-600 px-3 py-1 text-sm text-white">
-            {distance} Miles Away
-          </span>
+          {distance && (
+            <span className="inline-flex items-center rounded-full bg-gray-600 px-3 py-1 text-sm text-white">
+              {distance} Miles Away
+            </span>
+          )}
           <Link 
             to={`/educator/${createSlug(name)}`}
             state={{ id: educator_profile_id }}
