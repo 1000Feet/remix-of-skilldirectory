@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { MessageCircle } from 'lucide-react';
@@ -21,6 +20,7 @@ interface LessonRequest {
   educator_id: string;
   educator_profile_id: string;
   proposed_date: string;
+  proposed_time: string;
   status: string;
   message: string | null;
   created_at: string;
@@ -153,6 +153,9 @@ export function LessonRequests() {
                       <p className="text-sm font-medium">
                         {format(new Date(request.proposed_date), 'PPP')}
                       </p>
+                      <p className="text-sm text-gray-600">
+                        {request.proposed_time}
+                      </p>
                       <span className={`text-sm ${
                         request.status === 'pending' ? 'text-yellow-500' :
                         request.status === 'accepted' ? 'text-green-500' :
@@ -174,7 +177,7 @@ export function LessonRequests() {
                     <div className="flex gap-2 mt-4">
                       <Button
                         onClick={() => handleStatusUpdate(request.id, 'accepted')}
-                        className="flex-1"
+                        className="flex-1 bg-[#8BC34A] hover:bg-[#7CB342] text-white"
                       >
                         Accept
                       </Button>

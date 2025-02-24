@@ -12,6 +12,7 @@ import EducatorProfile from './pages/EducatorProfile';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster as SonnerToaster } from 'sonner';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 function BusinessRedirect() {
   const location = useLocation();
@@ -30,8 +31,22 @@ function App() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/listings" element={<Listings />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<EducatorDashboard />} />
-          <Route path="/student-dashboard" element={<StudentDashboard />} />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute userType="educator">
+                <EducatorDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/student-dashboard" 
+            element={
+              <ProtectedRoute userType="student">
+                <StudentDashboard />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="/educator/:slug" element={<EducatorProfile />} />
           <Route path="/business/:slug" element={<BusinessRedirect />} />
           <Route path="*" element={<NotFound />} />

@@ -1,15 +1,20 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import type { EducatorProfile } from './types';
 import type { EducatorProfileFormProps } from './types';
 import { BasicInfoSection } from './BasicInfoSection';
 import { SocialMediaSection } from './SocialMediaSection';
 import { AIChatbotSection } from './AIChatbotSection';
 import { VoiceAgentSection } from './VoiceAgentSection';
 import { EducatorImageUpload } from './EducatorImageUpload';
+
+interface EducatorProfileFormProps {
+  initialData?: EducatorProfile | null;
+  onSuccess?: (updatedProfile: EducatorProfile) => void;
+}
 
 export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileFormProps) {
   const { user } = useAuth();
@@ -23,7 +28,9 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
     email: initialData?.email || user?.email || '',
     about_business: initialData?.about_business || '',
     image: initialData?.image || '',
-    social: initialData?.social || { facebook: '', instagram: '', youtube: '' },
+    facebook_url: initialData?.facebook_url || '',
+    instagram_url: initialData?.instagram_url || '',
+    youtube_url: initialData?.youtube_url || '',
     ai_chatbot: initialData?.ai_chatbot || { knowledge_base: [] },
     ai_voice_agent: initialData?.ai_voice_agent || { 
       knowledge_base: [], 
@@ -43,7 +50,20 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
   };
 
   const handleSocialChange = (social: { facebook: string; instagram: string; youtube?: string }) => {
-    setFormData(prev => ({ ...prev, social }));
+    const formatUrl = (url: string) => {
+      if (!url) return '';
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return `https://${url}`;
+      }
+      return url;
+    };
+
+    setFormData(prev => ({ 
+      ...prev, 
+      facebook_url: formatUrl(social.facebook),
+      instagram_url: formatUrl(social.instagram),
+      youtube_url: social.youtube ? formatUrl(social.youtube) : ''
+    }));
   };
 
   const handleChatbotChange = (ai_chatbot: { knowledge_base: string[] }) => {
@@ -71,17 +91,27 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
     console.log('Starting profile update with data:', formData);
 
     try {
+      const formatUrl = (url: string) => {
+        if (!url) return '';
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          return `https://${url}`;
+        }
+        return url;
+      };
+
       const profileData = {
         user_id: user.id,
         name: formData.name.trim(),
         description: formData.description.trim(),
-        website: formData.website.trim(),
+        website: formatUrl(formData.website.trim()),
         address: formData.address.trim(),
         phone: formData.phone.trim(),
         email: formData.email.trim(),
         about_business: formData.about_business.trim(),
         image: formData.image,
-        social: formData.social,
+        facebook_url: formatUrl(formData.facebook_url.trim()),
+        instagram_url: formatUrl(formData.instagram_url.trim()),
+        youtube_url: formData.youtube_url ? formatUrl(formData.youtube_url.trim()) : '',
         ai_chatbot: formData.ai_chatbot,
         ai_voice_agent: formData.ai_voice_agent,
         categories: formData.categories,
@@ -92,8 +122,7 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
 
       let result;
       if (initialData?.id) {
-        // Update existing profile
-        console.log('Updating existing profile...');
+        console.log('Updating existing profile with data:', profileData);
         result = await supabase
           .from('educator_profiles')
           .update(profileData)
@@ -101,11 +130,10 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
           .select()
           .single();
       } else {
-        // Insert new profile
-        console.log('Creating new profile...');
+        console.log('Creating new profile with data:', profileData);
         result = await supabase
           .from('educator_profiles')
-          .insert([profileData])
+          .insert(profileData)
           .select()
           .single();
       }
@@ -114,15 +142,11 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
         throw result.error;
       }
 
-      console.log('Profile saved successfully:', result.data);
-      toast.success(initialData ? 'Profile updated successfully!' : 'Profile created successfully!');
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error: any) {
-      console.error('Profile operation error:', error);
-      toast.error(error.message || 'Failed to save profile');
+      // Call onSuccess with the updated profile data
+      onSuccess?.(result.data);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile');
     } finally {
       setIsSubmitting(false);
     }
@@ -145,7 +169,9 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
       />
 
       <SocialMediaSection
-        social={formData.social}
+        facebook={formData.facebook_url}
+        instagram={formData.instagram_url}
+        youtube={formData.youtube_url}
         onChange={handleSocialChange}
       />
 

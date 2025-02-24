@@ -127,6 +127,19 @@ export const useProfileManagement = () => {
       console.log(`Creating ${userType} profile for user ${userId}`, data);
 
       if (userType === 'student') {
+        // First check if profile already exists
+        const { data: existingProfile } = await supabase
+          .from('student_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        // If profile exists, just return it
+        if (existingProfile) {
+          console.log('Student profile already exists, skipping creation');
+          return;
+        }
+
         const studentData = {
           user_id: userId,
           name: data.name || null,
@@ -140,8 +153,24 @@ export const useProfileManagement = () => {
           .from('student_profiles')
           .insert([studentData]);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating student profile:', error);
+          throw error;
+        }
       } else {
+        // Check if educator profile exists
+        const { data: existingProfile } = await supabase
+          .from('educator_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        // If profile exists, just return it
+        if (existingProfile) {
+          console.log('Educator profile already exists, skipping creation');
+          return;
+        }
+
         const { data: educatorProfile, error: educatorError } = await supabase
           .from('educator_profiles')
           .insert({
@@ -156,7 +185,9 @@ export const useProfileManagement = () => {
             about_business: null,
             categories: [],
             tags: [],
-            social: { facebook: '', instagram: '', youtube: '' },
+            facebook_url: '',
+            instagram_url: '',
+            youtube_url: '',
             ai_chatbot: { knowledge_base: [] },
             ai_voice_agent: { 
               knowledge_base: [],
@@ -183,6 +214,10 @@ export const useProfileManagement = () => {
       }
     } catch (error: any) {
       console.error('Error creating profile:', error);
+      if (error.code === '23505') { // Unique constraint violation
+        console.log('Profile already exists, ignoring duplicate error');
+        return;
+      }
       toast.error('Failed to create profile');
       throw error;
     }

@@ -30,39 +30,7 @@ export const useAuthActions = () => {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Signup failed - no user data returned');
 
-      // Create the profile based on user type
-      if (userType === 'student') {
-        const { error: profileError } = await supabase
-          .from('student_profiles')
-          .insert([
-            {
-              user_id: authData.user.id,
-              email: email,
-              name: null,
-              phone: null,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }
-          ]);
-
-        if (profileError) throw profileError;
-      } else {
-        const { error: profileError } = await supabase
-          .from('educator_profiles')
-          .insert([
-            {
-              user_id: authData.user.id,
-              email: email,
-              name: '',
-              description: null,
-              image: null
-            }
-          ]);
-
-        if (profileError) throw profileError;
-      }
-
-      toast.success('Registration successful! Please check your email to verify your account.');
+      toast.success('Your account has been created successfully!');
       navigate('/auth');
     } catch (error: any) {
       console.error('Signup error:', error);

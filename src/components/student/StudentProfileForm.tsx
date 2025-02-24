@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +21,7 @@ const profileFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address").optional(),
   phone: z.string().min(1, "Phone number is required"),
+  address: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -37,6 +37,7 @@ export function StudentProfileForm() {
       name: "",
       email: user?.email || "",
       phone: "",
+      address: "",
     },
   });
 
@@ -63,6 +64,7 @@ export function StudentProfileForm() {
           name: profile.name || "",
           email: user.email || "",
           phone: profile.phone || "",
+          address: profile.address || "",
         });
       }
     } catch (error) {
@@ -96,6 +98,7 @@ export function StudentProfileForm() {
           email: user.email || '',
           name: data.name,
           phone: data.phone,
+          address: data.address,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'user_id'
@@ -174,6 +177,20 @@ export function StudentProfileForm() {
                   <FormLabel>Phone Number</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter your phone number" {...field} disabled={loading} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter your address" {...field} disabled={loading} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

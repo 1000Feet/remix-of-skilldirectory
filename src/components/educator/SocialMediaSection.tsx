@@ -1,19 +1,14 @@
-
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-interface SocialLinks {
+interface SocialMediaSectionProps {
   facebook: string;
   instagram: string;
   youtube?: string;
+  onChange: (values: { facebook: string; instagram: string; youtube?: string }) => void;
 }
 
-interface SocialMediaSectionProps {
-  social: SocialLinks;
-  onChange: (social: SocialLinks) => void;
-}
-
-export function SocialMediaSection({ social, onChange }: SocialMediaSectionProps) {
+export function SocialMediaSection({ facebook, instagram, youtube, onChange }: SocialMediaSectionProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -21,13 +16,13 @@ export function SocialMediaSection({ social, onChange }: SocialMediaSectionProps
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             placeholder="Facebook URL"
-            value={social.facebook}
-            onChange={(e) => onChange({ ...social, facebook: e.target.value })}
+            value={facebook}
+            onChange={(e) => onChange({ facebook: e.target.value, instagram, youtube })}
           />
           <Input
             placeholder="Instagram URL"
-            value={social.instagram}
-            onChange={(e) => onChange({ ...social, instagram: e.target.value })}
+            value={instagram}
+            onChange={(e) => onChange({ facebook, instagram: e.target.value, youtube })}
           />
         </div>
       </div>
@@ -36,8 +31,8 @@ export function SocialMediaSection({ social, onChange }: SocialMediaSectionProps
         <Label>Introduction Video</Label>
         <Input
           placeholder="YouTube Video URL"
-          value={social.youtube}
-          onChange={(e) => onChange({ ...social, youtube: e.target.value })}
+          value={youtube}
+          onChange={(e) => onChange({ facebook, instagram, youtube: e.target.value })}
         />
         <p className="text-sm text-gray-600">Add the URL of your introductory video from YouTube</p>
       </div>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -6,7 +5,7 @@ import { ClaimBanner } from "@/components/business/ClaimBanner";
 import { ProfileHeader } from "@/components/educator/ProfileHeader";
 import { AboutSection } from "@/components/educator/AboutSection";
 import { ContactInfo } from "@/components/educator/ContactInfo";
-import { LessonRequestForm } from "@/components/educator/LessonRequestForm";
+import { RequestLessonForm } from "@/components/student/RequestLessonForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -168,9 +167,9 @@ const EducatorProfile = () => {
                 website={profile.website}
                 social={profile.social}
               />
-              <LessonRequestForm 
-                educatorProfileId={profile.id} 
-                educatorName={profile.name} 
+              <RequestLessonForm 
+                educatorId={profile.id}
+                educatorProfileId={profile.id}
               />
             </div>
           </div>

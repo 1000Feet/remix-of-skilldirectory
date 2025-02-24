@@ -1,6 +1,5 @@
-
 import { Card } from "@/components/ui/card";
-import { Globe, Facebook, Instagram, MapPin, Phone, Mail } from "lucide-react";
+import { Facebook, Globe, Instagram, Mail, MapPin, Phone, Youtube } from "lucide-react";
 
 interface ContactInfoProps {
   business: {
@@ -8,10 +7,9 @@ interface ContactInfoProps {
     address: string;
     phone: string;
     email: string;
-    social: {
-      facebook: string;
-      instagram: string;
-    };
+    facebook_url: string;
+    instagram_url: string;
+    youtube_url?: string;
   };
 }
 
@@ -37,12 +35,21 @@ export const ContactInfo = ({ business }: ContactInfoProps) => {
           <span>{business.email}</span>
         </a>
         <div className="flex gap-4 mt-4">
-          <a href={business.social.facebook} className="text-gray-600 hover:text-primary">
-            <Facebook className="w-5 h-5" />
-          </a>
-          <a href={business.social.instagram} className="text-gray-600 hover:text-primary">
-            <Instagram className="w-5 h-5" />
-          </a>
+          {business.facebook_url && (
+            <a href={business.facebook_url} className="text-gray-600 hover:text-primary">
+              <Facebook className="w-5 h-5" />
+            </a>
+          )}
+          {business.instagram_url && (
+            <a href={business.instagram_url} className="text-gray-600 hover:text-primary">
+              <Instagram className="w-5 h-5" />
+            </a>
+          )}
+          {business.youtube_url && (
+            <a href={business.youtube_url} className="text-gray-600 hover:text-primary">
+              <Youtube className="w-5 h-5" />
+            </a>
+          )}
         </div>
       </div>
     </Card>

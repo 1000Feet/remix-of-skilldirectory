@@ -22,19 +22,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { fetchProfile, updateProfile: updateUserProfile, createProfile } = useProfileManagement();
 
   useEffect(() => {
-    // Initialize auth state from localStorage if available
-    const savedSession = localStorage.getItem('supabase.auth.token');
-    if (savedSession) {
-      try {
-        const session = JSON.parse(savedSession);
-        if (session?.currentSession?.user) {
-          handleUserChange(session.currentSession.user);
-        }
-      } catch (error) {
-        console.error('Error parsing saved session:', error);
-      }
-    }
-
     // Get current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -46,12 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session);
+      console.log('Auth state change:', event, session?.user?.id);
+      
       if (session?.user) {
-        await handleUserChange(session.user, event);
-      } else if (event === 'SIGNED_OUT') {
-        // Only clear user if explicitly signed out
+        await handleUserChange(session.user);
+      } else {
         setUser(null);
+        // Clear stored user data on sign out
+        localStorage.removeItem('auth.user');
       }
       setLoading(false);
     });
@@ -61,25 +50,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const handleUserChange = async (authUser: any, event?: string) => {
+  const handleUserChange = async (authUser: any) => {
     try {
       const userType = authUser.user_metadata?.user_type as UserType;
       console.log('Handling user change:', authUser.id, userType);
 
-      let profile = await fetchProfile(authUser.id, userType);
-      
-      if (!profile && event === 'SIGNED_UP') {
-        console.log('Creating new profile for user:', authUser.id);
-        const newProfileData = {
-          email: authUser.email,
-          user_type: userType,
-          ...(userType === 'student' 
-            ? { first_name: null, last_name: null, avatar_url: null }
-            : { name: '', description: null, image: null }
-          )
-        };
+      // Try to get profile from local storage first
+      const storedUserData = localStorage.getItem('auth.user');
+      let profile = storedUserData ? JSON.parse(storedUserData).profile : null;
+
+      // If no profile in storage, fetch or create from DB
+      if (!profile) {
+        // First try to fetch existing profile
+        profile = await fetchProfile(authUser.id, userType);
         
-        profile = await createProfile(authUser.id, userType, newProfileData);
+        // If no profile exists, create one
+        if (!profile) {
+          console.log('No profile found, creating new profile');
+          await createProfile(authUser.id, userType, {
+            email: authUser.email,
+            user_type: userType
+          });
+          // Fetch the newly created profile
+          profile = await fetchProfile(authUser.id, userType);
+        }
       }
 
       const userData = {
@@ -88,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user_metadata: {
           user_type: userType
         },
-        profile: profile || undefined
+        profile
       };
 
       setUser(userData);
@@ -97,6 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('auth.user', JSON.stringify(userData));
     } catch (error) {
       console.error('Error handling user change:', error);
+      // Clear potentially corrupted data
+      localStorage.removeItem('auth.user');
     } finally {
       setLoading(false);
     }
