@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -32,21 +33,12 @@ interface RequestLessonFormProps {
   educatorProfileId: string;
 }
 
-// Generate time slots from 6 AM to 12 AM (midnight) in 12-hour format
+// Generate time slots from 9 AM to 5 PM in 12-hour format
 const generateTimeSlots = () => {
   const slots = [];
-  for (let hour = 6; hour <= 24; hour++) {
+  for (let hour = 9; hour <= 17; hour++) {
     const period = hour >= 12 ? 'PM' : 'AM';
-    let displayHour = hour;
-    
-    if (hour > 12) {
-      displayHour = hour - 12;
-    } else if (hour === 24) {
-      displayHour = 12;
-    } else if (hour === 0) {
-      displayHour = 12;
-    }
-    
+    const displayHour = hour > 12 ? hour - 12 : hour;
     const hourStr = displayHour.toString();
     slots.push(`${hourStr}:00 ${period}`);
     slots.push(`${hourStr}:30 ${period}`);
