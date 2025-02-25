@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -72,7 +71,6 @@ const Listings = () => {
     refetchAddress 
   } = useDistance();
 
-  // Listen for auth state changes
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
@@ -89,7 +87,7 @@ const Listings = () => {
 
   useEffect(() => {
     fetchEducatorProfiles();
-  }, [selectedCategory, searchQuery, isAuthenticated]); // Add searchQuery as dependency
+  }, [selectedCategory, searchQuery, isAuthenticated]);
 
   const fetchEducatorProfiles = async () => {
     try {
@@ -102,12 +100,10 @@ const Listings = () => {
         .not('name', 'is', null)
         .not('name', 'eq', '');
 
-      // Apply category filter if selected
       if (selectedCategory) {
         query = query.contains('categories', [selectedCategory]);
       }
 
-      // Apply search filter if query exists
       if (searchQuery.trim()) {
         query = query.ilike('name', `%${searchQuery.trim()}%`);
       }
@@ -122,15 +118,11 @@ const Listings = () => {
       console.log('Student address:', studentAddress);
       console.log('Is authenticated:', isAuthenticated);
 
-      // Calculate distances if user is authenticated
       const profilesWithDistance = await Promise.all(
         (data || []).map(async (profile) => {
           let distance = null;
           if (isAuthenticated && profile.address) {
-            console.log('Calculating distance for educator:', profile.name);
-            console.log('Educator address:', profile.address);
             distance = await calculateDistanceFromStudent(profile.address);
-            console.log('Calculated distance:', distance);
           }
           return {
             ...profile,
@@ -155,10 +147,14 @@ const Listings = () => {
     }
   }, [studentAddress]);
   
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <Hero />
+      <Hero onSearch={handleSearch} />
       <main className="container mx-auto py-8 flex gap-8">
         <Sidebar 
           categories={categories} 
@@ -166,18 +162,6 @@ const Listings = () => {
           onSelectCategory={setSelectedCategory}
         />
         <div className="flex-1">
-          <div className="mb-6">
-            <div className="relative">
-              <Input
-                type="text"
-                placeholder="Search by business name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            </div>
-          </div>
           <GeocodingTest />
           {loading ? (
             <div className="text-center py-8">Loading...</div>
