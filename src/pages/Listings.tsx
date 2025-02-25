@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/pagination";
 import { useDistance } from "@/hooks/useDistance";
 import { GeocodingTest } from "@/components/GeocodingTest";
+import { useSearchParams } from "react-router-dom";
 import {
   Music,
   Palette,
@@ -57,7 +59,9 @@ interface EducatorProfile {
 }
 
 const Listings = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryFromUrl = searchParams.get('category');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(categoryFromUrl);
   const [searchQuery, setSearchQuery] = useState("");
   const [educatorProfiles, setEducatorProfiles] = useState<EducatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +86,11 @@ const Listings = () => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Update selected category when URL parameter changes
+  useEffect(() => {
+    setSelectedCategory(categoryFromUrl);
+  }, [categoryFromUrl]);
 
   useEffect(() => {
     fetchEducatorProfiles();
@@ -150,6 +159,7 @@ const Listings = () => {
   const handleReset = () => {
     setSearchQuery("");
     setSelectedCategory(null);
+    setSearchParams({});
     fetchEducatorProfiles("");
   };
 
@@ -166,7 +176,14 @@ const Listings = () => {
         <Sidebar 
           categories={categories} 
           selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
+          onSelectCategory={(category) => {
+            setSelectedCategory(category);
+            if (category) {
+              setSearchParams({ category });
+            } else {
+              setSearchParams({});
+            }
+          }}
         />
         <div className="flex-1">
           {loading ? (
