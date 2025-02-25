@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -84,7 +83,6 @@ const Listings = () => {
     };
   }, []);
 
-  // Initial load and category changes
   useEffect(() => {
     fetchEducatorProfiles();
   }, [selectedCategory, isAuthenticated]);
@@ -104,7 +102,6 @@ const Listings = () => {
         query = query.contains('categories', [selectedCategory]);
       }
 
-      // Use either the provided searchTerm or the current searchQuery state
       const termToSearch = searchTerm !== undefined ? searchTerm : searchQuery;
       if (termToSearch.trim()) {
         query = query.or(`name.ilike.%${termToSearch.trim()}%,categories.cs.{"${termToSearch.trim()}"}`);
@@ -147,13 +144,13 @@ const Listings = () => {
   
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    fetchEducatorProfiles(query); // Pass the query directly to avoid state timing issues
+    fetchEducatorProfiles(query);
   };
 
   const handleReset = () => {
     setSearchQuery("");
     setSelectedCategory(null);
-    fetchEducatorProfiles(""); // Pass empty string to clear search
+    fetchEducatorProfiles("");
   };
 
   return (
@@ -172,7 +169,6 @@ const Listings = () => {
           onSelectCategory={setSelectedCategory}
         />
         <div className="flex-1">
-          <GeocodingTest />
           {loading ? (
             <div className="text-center py-8">Loading...</div>
           ) : educatorProfiles.length === 0 ? (
