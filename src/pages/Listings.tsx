@@ -27,6 +27,7 @@ import {
   Waves
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const categories = [
   { name: "Animals", icon: Dog },
@@ -49,7 +50,7 @@ interface EducatorProfile {
   image: string;
   categories: string[];
   address: string;
-  distance?: string;
+  distance?: string | null;
   is_active: boolean;
 }
 
@@ -58,7 +59,7 @@ const Listings = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [educatorProfiles, setEducatorProfiles] = useState<EducatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const { calculateDistanceFromStudent, loading: distanceLoading, isAuthenticated } = useDistance();
+  const { calculateDistanceFromStudent, loading: distanceLoading, isAuthenticated, studentAddress } = useDistance();
 
   useEffect(() => {
     fetchEducatorProfiles();
@@ -70,7 +71,7 @@ const Listings = () => {
       let query = supabase
         .from('educator_profiles')
         .select('id, name, description, image, categories, address, is_active')
-        .eq('is_active', true) // Only fetch active educators
+        .eq('is_active', true) 
         .not('image', 'is', null)
         .not('name', 'is', null)
         .not('name', 'eq', '');
@@ -85,21 +86,42 @@ const Listings = () => {
         throw error;
       }
 
-      // Only calculate distances if user is authenticated
+      console.log('Fetched educator profiles:', data);
+      console.log('Student address:', studentAddress);
+
+      // Calculate distances if user is authenticated
       const profilesWithDistance = await Promise.all(
-        (data || []).map(async (profile) => ({
-          ...profile,
-          distance: isAuthenticated ? await calculateDistanceFromStudent(profile.address) : null
-        }))
+        (data || []).map(async (profile) => {
+          let distance = null;
+          if (isAuthenticated && profile.address) {
+            console.log('Calculating distance for educator:', profile.name);
+            console.log('Educator address:', profile.address);
+            distance = await calculateDistanceFromStudent(profile.address);
+            console.log('Calculated distance:', distance);
+          }
+          return {
+            ...profile,
+            distance: distance
+          };
+        })
       );
 
       setEducatorProfiles(profilesWithDistance);
     } catch (error) {
       console.error('Error fetching educator profiles:', error);
+      toast.error('Error loading educator profiles');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Recalculate distances when student address changes
+    if (studentAddress && educatorProfiles.length > 0) {
+      console.log('Student address changed, recalculating distances');
+      fetchEducatorProfiles();
+    }
+  }, [studentAddress]);
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -125,7 +147,7 @@ const Listings = () => {
                   name={profile.name}
                   description={profile.description}
                   image={profile.image}
-                  distance={profile.distance || 'N/A'}
+                  distance={profile.distance ? `${profile.distance} miles` : 'N/A'}
                   educator_profile_id={profile.id}
                 />
               ))}
