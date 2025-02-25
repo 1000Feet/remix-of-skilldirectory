@@ -14,7 +14,6 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster as SonnerToaster } from 'sonner';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { Header } from './components/Header';
 
 function BusinessRedirect() {
   const location = useLocation();
@@ -26,7 +25,6 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Header />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/about" element={<About />} />
