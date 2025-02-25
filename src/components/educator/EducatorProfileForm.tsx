@@ -1,22 +1,48 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import type { EducatorProfile } from './types';
-import type { EducatorProfileFormProps } from './types';
 import { BasicInfoSection } from './BasicInfoSection';
 import { SocialMediaSection } from './SocialMediaSection';
 import { AIChatbotSection } from './AIChatbotSection';
 import { VoiceAgentSection } from './VoiceAgentSection';
 import { EducatorImageUpload } from './EducatorImageUpload';
+import { CategorySelection } from './CategorySelection';
 
-interface EducatorProfileFormProps {
+interface EducatorProfile {
+  id?: string;
+  user_id?: string;
+  name: string;
+  description: string;
+  website: string;
+  address: string;
+  phone: string;
+  email: string;
+  about_business: string;
+  facebook_url: string;
+  instagram_url: string;
+  youtube_url?: string;
+  ai_chatbot?: {
+    knowledge_base: string[];
+  };
+  ai_voice_agent?: {
+    knowledge_base: string[];
+    voice_id: string;
+  };
+  image?: string | null;
+  categories?: string[];
+  tags?: string[];
+  subscription_tier?: string;
+}
+
+interface FormProps {
   initialData?: EducatorProfile | null;
   onSuccess?: (updatedProfile: EducatorProfile) => void;
 }
 
-export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileFormProps) {
+export function EducatorProfileForm({ initialData, onSuccess }: FormProps) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -72,6 +98,10 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
 
   const handleVoiceAgentChange = (ai_voice_agent: { knowledge_base: string[], voice_id: string }) => {
     setFormData(prev => ({ ...prev, ai_voice_agent }));
+  };
+
+  const handleCategoryChange = (categories: string[]) => {
+    setFormData(prev => ({ ...prev, categories }));
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -142,8 +172,8 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
         throw result.error;
       }
 
-      // Call onSuccess with the updated profile data
       onSuccess?.(result.data);
+      toast.success('Profile saved successfully!');
     } catch (error) {
       console.error('Error saving profile:', error);
       toast.error('Failed to save profile');
@@ -163,9 +193,16 @@ export function EducatorProfileForm({ initialData, onSuccess }: EducatorProfileF
         onImageUpload={handleImageChange}
         loading={isSubmitting}
       />
+
       <BasicInfoSection 
         info={formData} 
         onChange={handleBasicInfoChange}
+      />
+
+      <CategorySelection
+        categories={formData.categories}
+        selectedCategories={formData.categories}
+        onChange={handleCategoryChange}
       />
 
       <SocialMediaSection
