@@ -1,10 +1,11 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
@@ -32,13 +33,15 @@ interface RequestLessonFormProps {
   educatorProfileId: string;
 }
 
-// Generate time slots from 9 AM to 5 PM
+// Generate time slots from 9 AM to 5 PM in 12-hour format
 const generateTimeSlots = () => {
   const slots = [];
   for (let hour = 9; hour <= 17; hour++) {
-    const hourStr = hour.toString().padStart(2, '0');
-    slots.push(`${hourStr}:00`);
-    slots.push(`${hourStr}:30`);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour > 12 ? hour - 12 : hour;
+    const hourStr = displayHour.toString();
+    slots.push(`${hourStr}:00 ${period}`);
+    slots.push(`${hourStr}:30 ${period}`);
   }
   return slots;
 };
@@ -77,8 +80,13 @@ export function RequestLessonForm({ educatorId, educatorProfileId }: RequestLess
 
       // Format the date and time together
       const dateTime = new Date(data.proposedDate);
-      const [hours, minutes] = data.proposedTime.split(':');
-      dateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+      // Convert 12-hour format to 24-hour format for storage
+      const [time, period] = data.proposedTime.split(' ');
+      const [hours, minutes] = time.split(':');
+      let hour = parseInt(hours);
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+      dateTime.setHours(hour, parseInt(minutes));
 
       const { error } = await supabase
         .from('lesson_requests')
@@ -87,7 +95,7 @@ export function RequestLessonForm({ educatorId, educatorProfileId }: RequestLess
           educator_id: educatorData.user_id,
           educator_profile_id: educatorProfileId,
           proposed_date: dateTime.toISOString(),
-          proposed_time: data.proposedTime,
+          proposed_time: `${hour.toString().padStart(2, '0')}:${minutes}`,
           message: data.message || null,
           status: 'pending'
         });
