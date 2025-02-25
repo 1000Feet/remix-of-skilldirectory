@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Music, Palette, Utensils, Dog, Dumbbell, TreePine, Car, Target, Hammer, Waves } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -19,10 +20,13 @@ const categories = [
 
 export const FeaturedCategories = () => {
   const navigate = useNavigate();
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   const handleCategoryClick = (categoryName: string) => {
     navigate(`/listings?category=${encodeURIComponent(categoryName)}`);
   };
+
+  const displayedCategories = showAllCategories ? categories : categories.slice(0, 8);
 
   return (
     <section className="py-12 bg-[#F1F1F1]">
@@ -32,7 +36,7 @@ export const FeaturedCategories = () => {
           Explore our most popular learning categories and find the perfect educator for your interests
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {categories.map(category => (
+          {displayedCategories.map(category => (
             <div 
               key={category.name} 
               className="group p-6 bg-gray-50 rounded-xl hover:bg-primary hover:text-white transition-all duration-300 cursor-pointer"
@@ -48,9 +52,9 @@ export const FeaturedCategories = () => {
         <div className="flex justify-center mt-8">
           <Button 
             className="bg-primary hover:bg-primary/90 text-white gap-2"
-            onClick={() => navigate('/listings')}
+            onClick={() => setShowAllCategories(!showAllCategories)}
           >
-            More Categories
+            {showAllCategories ? 'Show Less' : 'More Categories'}
           </Button>
         </div>
       </div>
