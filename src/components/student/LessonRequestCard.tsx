@@ -1,15 +1,33 @@
 
 import { format } from 'date-fns';
 import { LessonRequest } from './types/lesson-request';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface LessonRequestCardProps {
   request: LessonRequest;
 }
 
 export function LessonRequestCard({ request }: LessonRequestCardProps) {
+  const handleCancel = async () => {
+    try {
+      const { error } = await supabase
+        .from('lesson_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', request.id);
+
+      if (error) throw error;
+      toast.success('Lesson request cancelled successfully');
+    } catch (error) {
+      console.error('Error cancelling lesson request:', error);
+      toast.error('Failed to cancel lesson request');
+    }
+  };
+
   return (
-    <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
-      <div className="space-y-1">
+    <div className="flex flex-col p-4 border rounded-lg bg-card">
+      <div className="flex-grow space-y-1">
         <h4 className="font-medium">
           {request.educator?.name}
         </h4>
@@ -25,6 +43,17 @@ export function LessonRequestCard({ request }: LessonRequestCardProps) {
         <p className="text-sm font-medium mt-2 capitalize">
           Status: {request.status}
         </p>
+      </div>
+      <div className="flex justify-end mt-4">
+        {request.status === 'pending' && (
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={handleCancel}
+          >
+            Cancel Request
+          </Button>
+        )}
       </div>
     </div>
   );

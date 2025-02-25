@@ -19,16 +19,18 @@ export type Database = {
           created_at: string
           description: string | null
           email: string
+          facebook_url: string | null
           id: string
           image: string | null
+          instagram_url: string | null
           name: string
           phone: string | null
-          social: Json | null
           subscription_tier: string | null
           tags: string[] | null
           updated_at: string
           user_id: string
           website: string | null
+          youtube_url: string | null
         }
         Insert: {
           about_business?: string | null
@@ -39,16 +41,18 @@ export type Database = {
           created_at?: string
           description?: string | null
           email: string
+          facebook_url?: string | null
           id?: string
           image?: string | null
+          instagram_url?: string | null
           name: string
           phone?: string | null
-          social?: Json | null
           subscription_tier?: string | null
           tags?: string[] | null
           updated_at?: string
           user_id: string
           website?: string | null
+          youtube_url?: string | null
         }
         Update: {
           about_business?: string | null
@@ -59,16 +63,18 @@ export type Database = {
           created_at?: string
           description?: string | null
           email?: string
+          facebook_url?: string | null
           id?: string
           image?: string | null
+          instagram_url?: string | null
           name?: string
           phone?: string | null
-          social?: Json | null
           subscription_tier?: string | null
           tags?: string[] | null
           updated_at?: string
           user_id?: string
           website?: string | null
+          youtube_url?: string | null
         }
         Relationships: []
       }
@@ -80,6 +86,7 @@ export type Database = {
           id: string
           message: string | null
           proposed_date: string
+          proposed_time: string | null
           status: string
           student_id: string
           updated_at: string
@@ -91,6 +98,7 @@ export type Database = {
           id?: string
           message?: string | null
           proposed_date: string
+          proposed_time?: string | null
           status?: string
           student_id: string
           updated_at?: string
@@ -102,6 +110,7 @@ export type Database = {
           id?: string
           message?: string | null
           proposed_date?: string
+          proposed_time?: string | null
           status?: string
           student_id?: string
           updated_at?: string
@@ -139,6 +148,7 @@ export type Database = {
       }
       student_profiles: {
         Row: {
+          address: string | null
           created_at: string
           email: string
           id: string
@@ -148,6 +158,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          address?: string | null
           created_at?: string
           email: string
           id?: string
@@ -157,6 +168,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          address?: string | null
           created_at?: string
           email?: string
           id?: string
