@@ -1,14 +1,12 @@
-import { useNavigate } from 'react-router-dom';
+
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserType } from '@/lib/auth-types';
 import { toast } from 'sonner';
 
 export const useAuthActions = () => {
-  const navigate = useNavigate();
-
   const signUp = async (email: string, password: string, userType: UserType) => {
     try {
-      // Basic validation
       if (!email || !email.includes('@')) {
         throw new Error('Please enter a valid email address');
       }
@@ -16,7 +14,6 @@ export const useAuthActions = () => {
         throw new Error('Password must be at least 6 characters long');
       }
 
-      // Sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -31,7 +28,7 @@ export const useAuthActions = () => {
       if (!authData.user) throw new Error('Signup failed - no user data returned');
 
       toast.success('Your account has been created successfully!');
-      navigate('/auth');
+      window.location.href = '/auth';
     } catch (error: any) {
       console.error('Signup error:', error);
       toast.error(error.message || 'Failed to create account');
@@ -48,7 +45,7 @@ export const useAuthActions = () => {
 
       if (error) throw error;
       
-      navigate('/', { replace: true });
+      window.location.href = '/';
       return data;
     } catch (error: any) {
       console.error('Sign in error:', error);
@@ -62,7 +59,7 @@ export const useAuthActions = () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      navigate('/auth', { replace: true });
+      window.location.href = '/auth';
       toast.success('Signed out successfully');
     } catch (error: any) {
       console.error('Sign out error:', error);
