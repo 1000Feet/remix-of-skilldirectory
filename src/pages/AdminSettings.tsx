@@ -39,17 +39,26 @@ export default function AdminSettings() {
 
   useEffect(() => {
     const checkAdminStatus = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log('No user found');
+        return;
+      }
+      
+      console.log('Checking admin status for user:', user.id);
       
       const { data, error } = await supabase
-        .rpc('is_admin', { user_id: user.id });
+        .from('admin_users')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
       
       if (error) {
         console.error('Error checking admin status:', error);
         return;
       }
       
-      setIsAdmin(data);
+      console.log('Admin check result:', data);
+      setIsAdmin(!!data);
     };
 
     checkAdminStatus();
@@ -126,12 +135,13 @@ export default function AdminSettings() {
     }
   };
 
-  if (!user || !isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-
   if (loading) {
     return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+  }
+
+  if (!user || !isAdmin) {
+    console.log('Access denied. User:', user?.id, 'IsAdmin:', isAdmin);
+    return <Navigate to="/" replace />;
   }
 
   return (
