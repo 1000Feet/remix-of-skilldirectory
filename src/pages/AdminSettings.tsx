@@ -23,6 +23,14 @@ interface User {
   name: string | null;
 }
 
+interface UserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  is_active: boolean;
+  user_id: string;
+}
+
 export default function AdminSettings() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,29 +61,31 @@ export default function AdminSettings() {
         // Fetch educators
         const { data: educators, error: educatorError } = await supabase
           .from('educator_profiles')
-          .select('id, email, name, is_active, user_id')
-          .order('created_at', { ascending: false });
+          .select('id, email, name, is_active, user_id');
 
         if (educatorError) throw educatorError;
 
         // Fetch students
         const { data: students, error: studentError } = await supabase
           .from('student_profiles')
-          .select('id, email, name, is_active, user_id')
-          .order('created_at', { ascending: false });
+          .select('id, email, name, is_active, user_id');
 
         if (studentError) throw studentError;
 
-        const formattedEducators = educators.map(ed => ({
-          ...ed,
-          user_type: 'educator' as const,
-          id: ed.user_id
+        const formattedEducators = (educators || []).map((ed: UserProfile) => ({
+          id: ed.user_id,
+          email: ed.email,
+          name: ed.name,
+          is_active: ed.is_active,
+          user_type: 'educator' as const
         }));
 
-        const formattedStudents = students.map(st => ({
-          ...st,
-          user_type: 'student' as const,
-          id: st.user_id
+        const formattedStudents = (students || []).map((st: UserProfile) => ({
+          id: st.user_id,
+          email: st.email,
+          name: st.name,
+          is_active: st.is_active,
+          user_type: 'student' as const
         }));
 
         setUsers([...formattedEducators, ...formattedStudents]);

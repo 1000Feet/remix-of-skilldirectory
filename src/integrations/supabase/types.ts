@@ -9,6 +9,24 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       educator_profiles: {
         Row: {
           about_business: string | null
@@ -23,6 +41,7 @@ export type Database = {
           id: string
           image: string | null
           instagram_url: string | null
+          is_active: boolean | null
           name: string
           phone: string | null
           subscription_tier: string | null
@@ -45,6 +64,7 @@ export type Database = {
           id?: string
           image?: string | null
           instagram_url?: string | null
+          is_active?: boolean | null
           name: string
           phone?: string | null
           subscription_tier?: string | null
@@ -67,6 +87,7 @@ export type Database = {
           id?: string
           image?: string | null
           instagram_url?: string | null
+          is_active?: boolean | null
           name?: string
           phone?: string | null
           subscription_tier?: string | null
@@ -152,6 +173,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          is_active: boolean | null
           name: string | null
           phone: string | null
           updated_at: string
@@ -162,6 +184,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          is_active?: boolean | null
           name?: string | null
           phone?: string | null
           updated_at?: string
@@ -172,6 +195,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          is_active?: boolean | null
           name?: string | null
           phone?: string | null
           updated_at?: string
