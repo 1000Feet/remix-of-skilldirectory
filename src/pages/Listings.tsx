@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/home/Hero";
+import { Input } from "@/components/ui/input";
 import { 
   Pagination, 
   PaginationContent, 
@@ -24,7 +25,8 @@ import {
   Car,
   Target,
   Hammer,
-  Waves
+  Waves,
+  Search
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -87,7 +89,7 @@ const Listings = () => {
 
   useEffect(() => {
     fetchEducatorProfiles();
-  }, [selectedCategory, isAuthenticated]); // Add isAuthenticated as dependency
+  }, [selectedCategory, searchQuery, isAuthenticated]); // Add searchQuery as dependency
 
   const fetchEducatorProfiles = async () => {
     try {
@@ -100,8 +102,14 @@ const Listings = () => {
         .not('name', 'is', null)
         .not('name', 'eq', '');
 
+      // Apply category filter if selected
       if (selectedCategory) {
         query = query.contains('categories', [selectedCategory]);
+      }
+
+      // Apply search filter if query exists
+      if (searchQuery.trim()) {
+        query = query.ilike('name', `%${searchQuery.trim()}%`);
       }
 
       const { data, error } = await query;
@@ -158,6 +166,18 @@ const Listings = () => {
           onSelectCategory={setSelectedCategory}
         />
         <div className="flex-1">
+          <div className="mb-6">
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Search by business name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            </div>
+          </div>
           <GeocodingTest />
           {loading ? (
             <div className="text-center py-8">Loading...</div>
