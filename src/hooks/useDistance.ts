@@ -9,16 +9,46 @@ export function useDistance() {
   const { user } = useAuth();
   const [studentAddress, setStudentAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userType, setUserType] = useState<string | null>(null);
 
   // Reset state when user changes
   useEffect(() => {
     if (!user) {
       setStudentAddress(null);
       setLoading(false);
+      setUserType(null);
     } else {
+      checkUserType();
       fetchStudentAddress();
     }
   }, [user?.id]); // Add user.id as dependency to properly track auth changes
+
+  const checkUserType = async () => {
+    if (!user?.id) return;
+    
+    // Check if user is an educator
+    const { data: educatorData } = await supabase
+      .from('educator_profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (educatorData) {
+      setUserType('educator');
+      return;
+    }
+
+    // Check if user is a student
+    const { data: studentData } = await supabase
+      .from('student_profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (studentData) {
+      setUserType('student');
+    }
+  };
 
   const fetchStudentAddress = async () => {
     try {
@@ -39,7 +69,7 @@ export function useDistance() {
         throw error;
       }
       
-      if (!data?.address) {
+      if (!data?.address && userType === 'student') {
         console.log('No address found for student');
         toast.error('Please add your address in your profile to see distance calculations');
       }
@@ -48,7 +78,9 @@ export function useDistance() {
       console.log('Successfully fetched student address:', data?.address);
     } catch (error) {
       console.error('Error fetching student address:', error);
-      toast.error('Error fetching your location');
+      if (userType === 'student') {
+        toast.error('Error fetching your location');
+      }
       setStudentAddress(null);
     } finally {
       setLoading(false);
@@ -56,8 +88,8 @@ export function useDistance() {
   };
 
   const calculateDistanceFromStudent = async (educatorAddress: string | null) => {
-    if (!user) {
-      console.log('No user logged in');
+    if (!user || userType !== 'student') {
+      console.log('No student user logged in');
       return null;
     }
 
@@ -85,7 +117,7 @@ export function useDistance() {
     loading,
     calculateDistanceFromStudent,
     studentAddress,
-    isAuthenticated: !!user,
-    refetchAddress: fetchStudentAddress // Export refetch function
+    isAuthenticated: !!user && userType === 'student', // Only return true for students
+    refetchAddress: fetchStudentAddress
   };
 }
