@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -50,7 +49,10 @@ interface EducatorProfile {
   image: string;
   categories: string[];
   address: string;
-  distance?: string | null;
+  distance?: {
+    miles: number;
+    kilometers: number;
+  } | null;
   is_active: boolean;
 }
 
@@ -147,7 +149,9 @@ const Listings = () => {
                   name={profile.name}
                   description={profile.description}
                   image={profile.image}
-                  distance={profile.distance ? `${profile.distance} miles` : 'N/A'}
+                  distance={profile.distance 
+                    ? `${profile.distance.miles} mi (${profile.distance.kilometers} km)`
+                    : 'N/A'}
                   educator_profile_id={profile.id}
                 />
               ))}

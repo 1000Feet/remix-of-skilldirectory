@@ -4,6 +4,11 @@ interface Coordinates {
   lng: number;
 }
 
+interface Distance {
+  miles: number;
+  kilometers: number;
+}
+
 export async function getCoordinates(address: string): Promise<Coordinates | null> {
   try {
     console.log('Geocoding address:', address);
@@ -42,8 +47,8 @@ export function calculateDistance(
   lon1: number,
   lat2: number,
   lon2: number
-): number {
-  const R = 3959; // Earth's radius in miles
+): Distance {
+  const R = 6371; // Earth's radius in kilometers
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
@@ -53,8 +58,13 @@ export function calculateDistance(
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-  return Math.round(distance);
+  const distanceKm = R * c;
+  const distanceMiles = distanceKm * 0.621371; // Convert km to miles
+
+  return {
+    kilometers: Math.round(distanceKm * 10) / 10, // Round to 1 decimal place
+    miles: Math.round(distanceMiles * 10) / 10
+  };
 }
 
 function toRad(degrees: number): number {
@@ -64,7 +74,7 @@ function toRad(degrees: number): number {
 export async function getDistanceBetweenAddresses(
   address1: string | null,
   address2: string | null
-): Promise<number | null> {
+): Promise<Distance | null> {
   if (!address1 || !address2) {
     console.log('Missing address(es):', { address1, address2 });
     return null;
@@ -87,7 +97,7 @@ export async function getDistanceBetweenAddresses(
     coords2.lng
   );
 
-  console.log('Calculated distance:', distance, 'miles');
+  console.log('Calculated distance:', distance);
   return distance;
 }
 

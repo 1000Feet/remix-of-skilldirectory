@@ -61,8 +61,8 @@ export function useDistance() {
     
     try {
       const distance = await getDistanceBetweenAddresses(studentAddress, educatorAddress);
-      console.log('Distance calculated:', distance, 'miles between', studentAddress, 'and', educatorAddress);
-      return distance ? `${distance}` : null;
+      console.log('Distance calculated:', distance);
+      return distance;
     } catch (error) {
       console.error('Error calculating distance:', error);
       return null;
