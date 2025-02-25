@@ -9,6 +9,21 @@ import { toast } from 'sonner';
 import type { EducatorProfile } from '@/components/educator/types';
 import { Header } from '@/components/Header';
 import { Card } from '@/components/ui/card';
+import { 
+  DropdownMenu, 
+  DropdownMenuTrigger, 
+  DropdownMenuContent, 
+  DropdownMenuItem 
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { ExternalLink } from 'lucide-react';
+
+const createSlug = (name: string) => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+};
 
 export default function EducatorDashboard() {
   const { user } = useAuth();
@@ -74,6 +89,14 @@ export default function EducatorDashboard() {
     toast.success('Profile updated successfully!');
   };
 
+  const handleViewPublicProfile = () => {
+    if (educatorProfile?.name) {
+      const slug = createSlug(educatorProfile.name);
+      const profileUrl = `/educator/${slug}`;
+      window.open(profileUrl, '_blank');
+    }
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -97,6 +120,20 @@ export default function EducatorDashboard() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="space-y-8">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Educator Dashboard</h1>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">Actions</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleViewPublicProfile}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  View Public Profile
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <LessonRequests userId={user?.id || ''} />
           <Card className="p-6">
             <h1 className="text-2xl font-bold mb-6">Educator Profile</h1>
