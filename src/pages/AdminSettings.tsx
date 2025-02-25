@@ -17,7 +17,7 @@ import { Switch } from '@/components/ui/switch';
 
 interface UserData {
   id: string;
-  email: string;
+  email: string | undefined;
   user_metadata: {
     user_type: 'student' | 'educator';
   };
@@ -32,24 +32,20 @@ export default function AdminSettings() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAdminStatus();
-    fetchUsers();
-  }, []);
-
-  const checkAdminStatus = async () => {
     if (!user) {
       navigate('/auth');
       return;
     }
+    checkAdminStatus();
+  }, [user]);
 
+  const checkAdminStatus = async () => {
     try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      const { data: isAdminResult, error: adminCheckError } = await supabase
+        .rpc('is_admin', { user_id: user?.id });
 
-      if (error || !data) {
+      if (adminCheckError || !isAdminResult) {
+        console.error('Not an admin:', adminCheckError);
         navigate('/');
         toast.error('Unauthorized access');
         return;
@@ -57,6 +53,7 @@ export default function AdminSettings() {
 
       setIsAdmin(true);
       setLoading(false);
+      fetchUsers();
     } catch (error) {
       console.error('Error checking admin status:', error);
       navigate('/');
@@ -65,24 +62,22 @@ export default function AdminSettings() {
 
   const fetchUsers = async () => {
     try {
-      const { data: adminData, error: adminError } = await supabase
-        .from('admin_users')
-        .select('user_id');
-
-      if (adminError) throw adminError;
-
-      const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+      const { data, error } = await supabase.auth.admin.listUsers();
       
-      if (userError) throw userError;
+      if (error) throw error;
 
-      const processedUsers = userData.users.map(user => ({
-        id: user.id,
-        email: user.email,
-        user_metadata: user.user_metadata,
-        is_active: !user.banned_until
-      }));
+      if (data?.users) {
+        const processedUsers = data.users.map(user => ({
+          id: user.id,
+          email: user.email,
+          user_metadata: {
+            user_type: user.user_metadata?.user_type || 'student'
+          },
+          is_active: !user.banned_until
+        }));
 
-      setUsers(processedUsers);
+        setUsers(processedUsers);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to load users');
@@ -91,9 +86,10 @@ export default function AdminSettings() {
 
   const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase.auth.admin.updateUserById(userId, {
-        ban_duration: currentStatus ? '876000h' : null // 100 years if banning, null if unbanning
-      });
+      const { error } = await supabase.auth.admin.updateUserById(
+        userId,
+        { ban_duration: currentStatus ? '876000h' : null } // 100 years if banning, null if unbanning
+      );
 
       if (error) throw error;
 
