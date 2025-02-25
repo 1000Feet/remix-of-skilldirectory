@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -61,11 +62,32 @@ const Listings = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [educatorProfiles, setEducatorProfiles] = useState<EducatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const { calculateDistanceFromStudent, loading: distanceLoading, isAuthenticated, studentAddress } = useDistance();
+  const { 
+    calculateDistanceFromStudent, 
+    loading: distanceLoading, 
+    isAuthenticated, 
+    studentAddress,
+    refetchAddress 
+  } = useDistance();
+
+  // Listen for auth state changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        console.log('User signed in, refreshing data');
+        refetchAddress();
+        fetchEducatorProfiles();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     fetchEducatorProfiles();
-  }, [selectedCategory]);
+  }, [selectedCategory, isAuthenticated]); // Add isAuthenticated as dependency
 
   const fetchEducatorProfiles = async () => {
     try {
@@ -90,6 +112,7 @@ const Listings = () => {
 
       console.log('Fetched educator profiles:', data);
       console.log('Student address:', studentAddress);
+      console.log('Is authenticated:', isAuthenticated);
 
       // Calculate distances if user is authenticated
       const profilesWithDistance = await Promise.all(
@@ -118,7 +141,6 @@ const Listings = () => {
   };
 
   useEffect(() => {
-    // Recalculate distances when student address changes
     if (studentAddress && educatorProfiles.length > 0) {
       console.log('Student address changed, recalculating distances');
       fetchEducatorProfiles();

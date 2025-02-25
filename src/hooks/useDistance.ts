@@ -10,24 +10,34 @@ export function useDistance() {
   const [studentAddress, setStudentAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Reset state when user changes
   useEffect(() => {
-    if (user) {
-      fetchStudentAddress();
-    } else {
+    if (!user) {
+      setStudentAddress(null);
       setLoading(false);
+    } else {
+      fetchStudentAddress();
     }
-  }, [user]);
+  }, [user?.id]); // Add user.id as dependency to properly track auth changes
 
   const fetchStudentAddress = async () => {
     try {
       setLoading(true);
+      if (!user?.id) {
+        console.log('No user ID available');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('student_profiles')
         .select('address')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching student address:', error);
+        throw error;
+      }
       
       if (!data?.address) {
         console.log('No address found for student');
@@ -35,9 +45,11 @@ export function useDistance() {
       }
       
       setStudentAddress(data?.address || null);
+      console.log('Successfully fetched student address:', data?.address);
     } catch (error) {
       console.error('Error fetching student address:', error);
       toast.error('Error fetching your location');
+      setStudentAddress(null);
     } finally {
       setLoading(false);
     }
@@ -73,6 +85,7 @@ export function useDistance() {
     loading,
     calculateDistanceFromStudent,
     studentAddress,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    refetchAddress: fetchStudentAddress // Export refetch function
   };
 }
