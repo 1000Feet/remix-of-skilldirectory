@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -11,6 +12,8 @@ import { FeaturedCategories } from "@/components/home/FeaturedCategories";
 import { FeaturedEducators } from "@/components/home/FeaturedEducators";
 import { TrustIndicators } from "@/components/home/TrustIndicators";
 import { Music, Palette, Utensils, Dumbbell, TreePine, Car, Waves, Hammer } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const businesses = [{
   id: 1,
@@ -67,11 +70,52 @@ const categories = [{
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [filteredBusinesses, setFilteredBusinesses] = useState(businesses);
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    filterBusinesses(query, selectedCategory);
+  };
+
+  const handleReset = () => {
+    setSearchQuery("");
+    setSelectedCategory(null);
+    setFilteredBusinesses(businesses);
+  };
+
+  const filterBusinesses = (query: string, category: string | null) => {
+    let filtered = [...businesses];
+
+    if (query.trim()) {
+      const searchLower = query.toLowerCase();
+      filtered = filtered.filter(business => 
+        business.name.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (category) {
+      filtered = filtered.filter(business => 
+        business.name.includes(category)
+      );
+    }
+
+    setFilteredBusinesses(filtered);
+  };
+
+  const handleCategorySelect = (category: string | null) => {
+    setSelectedCategory(category);
+    filterBusinesses(searchQuery, category);
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <Hero />
+      <Hero 
+        onSearch={handleSearch}
+        onReset={handleReset}
+        hasSearchResults={searchQuery.length > 0}
+        searchQuery={searchQuery}
+      />
       <HowItWorks />
       <FeaturedCategories />
       <FeaturedEducators />
@@ -79,10 +123,14 @@ const Index = () => {
       <TrustIndicators />
 
       <main className="container mx-auto py-8 flex gap-8 flex-1">
-        <Sidebar categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
+        <Sidebar 
+          categories={categories} 
+          selectedCategory={selectedCategory} 
+          onSelectCategory={handleCategorySelect}
+        />
 
         <div className="flex-1 space-y-6">
-          {businesses.map(business => (
+          {filteredBusinesses.map(business => (
             <BusinessCard 
               key={business.id} 
               id={business.id} 
