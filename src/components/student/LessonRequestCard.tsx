@@ -40,7 +40,7 @@ export function LessonRequestCard({
         </p>
       </div>
       <div className="flex justify-end mt-4">
-        {request.status === 'pending' && <Button variant="destructive" size="sm" onClick={handleCancel} className="bg-slate-950 hover:bg-slate-800 bg-[8bc34a]">
+        {request.status === 'pending' && <Button variant="destructive" size="sm" onClick={handleCancel} className="bg-[8bc34a] bg-[#8bc34a]">
             Cancel Request
           </Button>}
       </div>
