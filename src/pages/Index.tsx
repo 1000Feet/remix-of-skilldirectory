@@ -11,36 +11,24 @@ import { Stats } from "@/components/home/Stats";
 import { FeaturedCategories } from "@/components/home/FeaturedCategories";
 import { FeaturedEducators } from "@/components/home/FeaturedEducators";
 import { TrustIndicators } from "@/components/home/TrustIndicators";
-import { Music, Palette, Utensils, Dumbbell, TreePine, Car, Waves, Hammer } from "lucide-react";
+import { Music, Palette, Utensils, Dog, Dumbbell, TreePine, Car, Target, Hammer, Waves } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useDistance } from "@/hooks/useDistance";
 
-const categories = [{
-  name: "Music and Performing Arts",
-  icon: Music
-}, {
-  name: "Arts & Crafts",
-  icon: Palette
-}, {
-  name: "Food and Beverage",
-  icon: Utensils
-}, {
-  name: "Personal Fitness/ Sports",
-  icon: Dumbbell
-}, {
-  name: "Outdoor Recreation",
-  icon: TreePine
-}, {
-  name: "Vehicle Operation",
-  icon: Car
-}, {
-  name: "Water Recreation",
-  icon: Waves
-}, {
-  name: "Trades",
-  icon: Hammer
-}];
+const categories = [
+  { name: "Animals", icon: Dog },
+  { name: "Arts & Crafts", icon: Palette },
+  { name: "Food and Beverage", icon: Utensils },
+  { name: "Martial Arts", icon: Target },
+  { name: "Music and Performing Arts", icon: Music },
+  { name: "Outdoor Recreation", icon: TreePine },
+  { name: "Personal Fitness/ Sports", icon: Dumbbell },
+  { name: "Shooting Sports", icon: Target },
+  { name: "Trades", icon: Hammer },
+  { name: "Vehicle Operation", icon: Car },
+  { name: "Water Recreation", icon: Waves },
+];
 
 interface EducatorProfile {
   id: string;
@@ -155,7 +143,7 @@ const Index = () => {
 
   const handleCategorySelect = (category: string | null) => {
     setSelectedCategory(category);
-    filterBusinesses(searchQuery, category);
+    fetchEducatorProfiles();
   };
 
   return (
