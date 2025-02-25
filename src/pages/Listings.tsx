@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -86,7 +85,7 @@ const Listings = () => {
 
   useEffect(() => {
     fetchEducatorProfiles();
-  }, [selectedCategory, isAuthenticated]); // Removed searchQuery dependency
+  }, [selectedCategory, isAuthenticated]);
 
   const fetchEducatorProfiles = async () => {
     try {
@@ -142,18 +141,15 @@ const Listings = () => {
     }
   }, [studentAddress]);
   
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    if (selectedCategory) {
-      setSelectedCategory(null);
-    }
-    fetchEducatorProfiles(); // Explicitly fetch results when search button is clicked
+  const handleSearch = async (query: string) => {
+    await setSearchQuery(query);
+    fetchEducatorProfiles();
   };
 
   const handleReset = () => {
     setSearchQuery("");
     setSelectedCategory(null);
-    fetchEducatorProfiles(); // Fetch all results when reset
+    fetchEducatorProfiles();
   };
 
   return (

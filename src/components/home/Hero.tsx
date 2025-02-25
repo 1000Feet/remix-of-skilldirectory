@@ -14,8 +14,8 @@ export function Hero({ onSearch, onReset, hasSearchResults, searchQuery }: HeroP
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const searchQuery = formData.get('search') as string;
-    onSearch?.(searchQuery);
+    const query = formData.get('search') as string;
+    onSearch?.(query);
   };
 
   return (
@@ -40,7 +40,11 @@ export function Hero({ onSearch, onReset, hasSearchResults, searchQuery }: HeroP
               {hasSearchResults && (
                 <button
                   type="button"
-                  onClick={onReset}
+                  onClick={() => {
+                    const input = document.querySelector('input[name="search"]') as HTMLInputElement;
+                    input.value = '';
+                    onReset?.();
+                  }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full"
                 >
                   <X className="h-4 w-4 text-gray-500" />
