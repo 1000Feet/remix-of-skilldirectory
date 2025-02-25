@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -49,6 +50,7 @@ interface EducatorProfile {
   categories: string[];
   address: string;
   distance?: string;
+  is_active: boolean;
 }
 
 const Listings = () => {
@@ -67,11 +69,11 @@ const Listings = () => {
       setLoading(true);
       let query = supabase
         .from('educator_profiles')
-        .select('id, name, description, image, categories, address')
+        .select('id, name, description, image, categories, address, is_active')
+        .eq('is_active', true) // Only fetch active educators
         .not('image', 'is', null)
         .not('name', 'is', null)
-        .not('name', 'eq', '')
-        .range(0, 9);
+        .not('name', 'eq', '');
 
       if (selectedCategory) {
         query = query.contains('categories', [selectedCategory]);
