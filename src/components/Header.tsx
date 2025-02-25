@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, GraduationCap, User } from "lucide-react";
+import { ChevronDown, Eye, GraduationCap, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -35,6 +36,26 @@ export const Header = ({ searchQuery, onSearchChange }: HeaderProps = {}) => {
   // Check if user exists and has user_metadata
   const isEducator = user?.user_metadata?.user_type === 'educator';
   const isStudent = user?.user_metadata?.user_type === 'student';
+
+  const handleViewProfile = async () => {
+    if (!user || !isEducator) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from('educator_profiles')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile) {
+        const slug = profile.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        window.open(`/educator/${slug}`, '_blank');
+      }
+    } catch (error) {
+      console.error('Error fetching educator profile:', error);
+      toast.error('Could not open profile');
+    }
+  };
 
   console.log('Current user in header:', user?.user_metadata);
 
@@ -81,12 +102,18 @@ export const Header = ({ searchQuery, onSearchChange }: HeaderProps = {}) => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-[200px]">
                       {isEducator && (
-                        <DropdownMenuItem asChild>
-                          <Link to="/dashboard" className="w-full cursor-pointer flex items-center gap-2">
-                            <GraduationCap className="h-4 w-4" />
-                            Educator Dashboard
-                          </Link>
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem asChild>
+                            <Link to="/dashboard" className="w-full cursor-pointer flex items-center gap-2">
+                              <GraduationCap className="h-4 w-4" />
+                              Educator Dashboard
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleViewProfile} className="cursor-pointer flex items-center gap-2">
+                            <Eye className="h-4 w-4" />
+                            View Public Profile
+                          </DropdownMenuItem>
+                        </>
                       )}
                       {isStudent && (
                         <DropdownMenuItem asChild>
