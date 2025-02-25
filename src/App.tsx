@@ -1,35 +1,58 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Auth from './pages/Auth';
-import { AuthProvider } from './contexts/AuthContext';
-import { Header } from './components/Header';
-import { BusinessCard } from './components/BusinessCard';
-import Home from './pages/Home';
-import Listings from './pages/Listings';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import Index from './pages/Index';
 import About from './pages/About';
-import Pricing from './pages/Pricing';
 import Support from './pages/Support';
-import EducatorProfile from './pages/EducatorProfile';
-import Dashboard from './pages/Dashboard';
+import Pricing from './pages/Pricing';
+import Listings from './pages/Listings';
+import Auth from './pages/Auth';
+import NotFound from './pages/NotFound';
+import EducatorDashboard from './pages/EducatorDashboard';
 import StudentDashboard from './pages/StudentDashboard';
-import AdminSettings from './pages/AdminSettings';
+import EducatorProfile from './pages/EducatorProfile';
+import { Toaster } from '@/components/ui/toaster';
+import { AuthProvider } from './contexts/AuthContext';
+import { Toaster as SonnerToaster } from 'sonner';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+
+function BusinessRedirect() {
+  const location = useLocation();
+  const newPath = location.pathname.replace('business', 'educator');
+  return <Navigate to={newPath} replace />;
+}
 
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <Header />
         <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<Home />} />
-          <Route path="/listings" element={<Listings />} />
+          <Route path="/" element={<Index />} />
           <Route path="/about" element={<About />} />
-          <Route path="/pricing" element={<Pricing />} />
           <Route path="/support" element={<Support />} />
-          <Route path="/educator/:educatorName" element={<EducatorProfile />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/student-dashboard" element={<StudentDashboard />} />
-          <Route path="/admin" element={<AdminSettings />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/listings" element={<Listings />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute userType="educator">
+                <EducatorDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/student-dashboard" 
+            element={
+              <ProtectedRoute userType="student">
+                <StudentDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/educator/:slug" element={<EducatorProfile />} />
+          <Route path="/business/:slug" element={<BusinessRedirect />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
+        <Toaster />
+        <SonnerToaster />
       </AuthProvider>
     </Router>
   );
