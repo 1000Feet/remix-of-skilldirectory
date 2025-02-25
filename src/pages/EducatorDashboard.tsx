@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,12 +8,6 @@ import { toast } from 'sonner';
 import type { EducatorProfile } from '@/components/educator/types';
 import { Header } from '@/components/Header';
 import { Card } from '@/components/ui/card';
-import { 
-  DropdownMenu, 
-  DropdownMenuTrigger, 
-  DropdownMenuContent, 
-  DropdownMenuItem 
-} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 
@@ -63,7 +56,6 @@ export default function EducatorDashboard() {
         throw profileError;
       }
 
-      // Check if the educator is active
       if (!data.is_active) {
         setError('Your account has been deactivated. Please contact support for assistance.');
         setEducatorProfile(null);
@@ -122,19 +114,16 @@ export default function EducatorDashboard() {
         <div className="space-y-8">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Educator Dashboard</h1>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">Actions</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleViewPublicProfile}>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  View Public Profile
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button 
+              variant="outline" 
+              onClick={handleViewPublicProfile}
+              className="flex items-center gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              View Public Profile
+            </Button>
           </div>
-          <LessonRequests userId={user?.id || ''} />
+          <LessonRequests userId={user?.id} />
           <Card className="p-6">
             <h1 className="text-2xl font-bold mb-6">Educator Profile</h1>
             <EducatorProfileForm
