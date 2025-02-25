@@ -86,7 +86,7 @@ const Listings = () => {
 
   useEffect(() => {
     fetchEducatorProfiles();
-  }, [selectedCategory, searchQuery, isAuthenticated]);
+  }, [selectedCategory, isAuthenticated]); // Removed searchQuery dependency
 
   const fetchEducatorProfiles = async () => {
     try {
@@ -147,11 +147,13 @@ const Listings = () => {
     if (selectedCategory) {
       setSelectedCategory(null);
     }
+    fetchEducatorProfiles(); // Explicitly fetch results when search button is clicked
   };
 
   const handleReset = () => {
     setSearchQuery("");
     setSelectedCategory(null);
+    fetchEducatorProfiles(); // Fetch all results when reset
   };
 
   return (

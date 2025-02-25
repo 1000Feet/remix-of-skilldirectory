@@ -33,8 +33,7 @@ export function Hero({ onSearch, onReset, hasSearchResults, searchQuery }: HeroP
               <Input 
                 type="text" 
                 name="search"
-                value={searchQuery}
-                onChange={(e) => onSearch?.(e.target.value)}
+                defaultValue={searchQuery}
                 placeholder="Search skills or educators..." 
                 className="w-full" 
               />
