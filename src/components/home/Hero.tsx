@@ -1,12 +1,16 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { X } from "lucide-react";
 
 interface HeroProps {
   onSearch?: (query: string) => void;
+  onReset?: () => void;
+  hasSearchResults?: boolean;
+  searchQuery?: string;
 }
 
-export function Hero({ onSearch }: HeroProps) {
+export function Hero({ onSearch, onReset, hasSearchResults, searchQuery }: HeroProps) {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -25,12 +29,25 @@ export function Hero({ onSearch }: HeroProps) {
             Discover local instructors and learn new skills in your area
           </p>
           <form onSubmit={handleSubmit} className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Input 
-              type="text" 
-              name="search"
-              placeholder="Search skills or educators..." 
-              className="max-w-xs" 
-            />
+            <div className="relative w-full max-w-xs">
+              <Input 
+                type="text" 
+                name="search"
+                value={searchQuery}
+                onChange={(e) => onSearch?.(e.target.value)}
+                placeholder="Search skills or educators..." 
+                className="w-full" 
+              />
+              {hasSearchResults && (
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full"
+                >
+                  <X className="h-4 w-4 text-gray-500" />
+                </button>
+              )}
+            </div>
             <Button type="submit" className="bg-white text-primary hover:bg-white/90">
               Find Skills
             </Button>

@@ -1,10 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/home/Hero";
-import { Input } from "@/components/ui/input";
 import { 
   Pagination, 
   PaginationContent, 
@@ -24,8 +24,7 @@ import {
   Car,
   Target,
   Hammer,
-  Waves,
-  Search
+  Waves
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -105,7 +104,7 @@ const Listings = () => {
       }
 
       if (searchQuery.trim()) {
-        query = query.ilike('name', `%${searchQuery.trim()}%`);
+        query = query.or(`name.ilike.%${searchQuery.trim()}%,categories.cs.{"${searchQuery.trim()}"}`);
       }
 
       const { data, error } = await query;
@@ -113,10 +112,6 @@ const Listings = () => {
       if (error) {
         throw error;
       }
-
-      console.log('Fetched educator profiles:', data);
-      console.log('Student address:', studentAddress);
-      console.log('Is authenticated:', isAuthenticated);
 
       const profilesWithDistance = await Promise.all(
         (data || []).map(async (profile) => {
@@ -149,12 +144,25 @@ const Listings = () => {
   
   const handleSearch = (query: string) => {
     setSearchQuery(query);
+    if (selectedCategory) {
+      setSelectedCategory(null);
+    }
+  };
+
+  const handleReset = () => {
+    setSearchQuery("");
+    setSelectedCategory(null);
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <Hero onSearch={handleSearch} />
+      <Hero 
+        onSearch={handleSearch} 
+        onReset={handleReset}
+        hasSearchResults={searchQuery.length > 0}
+        searchQuery={searchQuery}
+      />
       <main className="container mx-auto py-8 flex gap-8">
         <Sidebar 
           categories={categories} 
