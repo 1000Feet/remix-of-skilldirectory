@@ -15,7 +15,17 @@ export function Hero({ onSearch, onReset, hasSearchResults, searchQuery }: HeroP
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const query = formData.get('search') as string;
-    onSearch?.(query);
+    if (onSearch) {
+      onSearch(query);
+    }
+  };
+
+  const handleReset = () => {
+    const input = document.querySelector('input[name="search"]') as HTMLInputElement;
+    input.value = '';
+    if (onReset) {
+      onReset();
+    }
   };
 
   return (
@@ -40,11 +50,7 @@ export function Hero({ onSearch, onReset, hasSearchResults, searchQuery }: HeroP
               {hasSearchResults && (
                 <button
                   type="button"
-                  onClick={() => {
-                    const input = document.querySelector('input[name="search"]') as HTMLInputElement;
-                    input.value = '';
-                    onReset?.();
-                  }}
+                  onClick={handleReset}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full"
                 >
                   <X className="h-4 w-4 text-gray-500" />

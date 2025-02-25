@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -83,11 +84,12 @@ const Listings = () => {
     };
   }, []);
 
+  // Initial load and category changes
   useEffect(() => {
     fetchEducatorProfiles();
   }, [selectedCategory, isAuthenticated]);
 
-  const fetchEducatorProfiles = async () => {
+  const fetchEducatorProfiles = async (searchTerm?: string) => {
     try {
       setLoading(true);
       let query = supabase
@@ -102,8 +104,10 @@ const Listings = () => {
         query = query.contains('categories', [selectedCategory]);
       }
 
-      if (searchQuery.trim()) {
-        query = query.or(`name.ilike.%${searchQuery.trim()}%,categories.cs.{"${searchQuery.trim()}"}`);
+      // Use either the provided searchTerm or the current searchQuery state
+      const termToSearch = searchTerm !== undefined ? searchTerm : searchQuery;
+      if (termToSearch.trim()) {
+        query = query.or(`name.ilike.%${termToSearch.trim()}%,categories.cs.{"${termToSearch.trim()}"}`);
       }
 
       const { data, error } = await query;
@@ -141,15 +145,15 @@ const Listings = () => {
     }
   }, [studentAddress]);
   
-  const handleSearch = async (query: string) => {
-    await setSearchQuery(query);
-    fetchEducatorProfiles();
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    fetchEducatorProfiles(query); // Pass the query directly to avoid state timing issues
   };
 
   const handleReset = () => {
     setSearchQuery("");
     setSelectedCategory(null);
-    fetchEducatorProfiles();
+    fetchEducatorProfiles(""); // Pass empty string to clear search
   };
 
   return (
