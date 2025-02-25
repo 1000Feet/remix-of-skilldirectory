@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Auth from './pages/Auth';
 import { AuthProvider } from './contexts/AuthContext';
