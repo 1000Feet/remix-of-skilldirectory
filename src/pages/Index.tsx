@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
@@ -14,32 +14,7 @@ import { TrustIndicators } from "@/components/home/TrustIndicators";
 import { Music, Palette, Utensils, Dumbbell, TreePine, Car, Waves, Hammer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
-const businesses = [{
-  id: 1,
-  name: "The Princess Co.",
-  description: "The Princess Co. is a professional children's entertainment company...",
-  distance: "4,714.2",
-  image: "/lovable-uploads/9845c1eb-dafb-4d19-8c8b-2014f389a748.png",
-  educator_id: "0e4c4a2e-6431-4751-ac9b-b743c126766b",
-  educator_profile_id: "0e4c4a2e-6431-4751-ac9b-b743c126766b"
-}, {
-  id: 2,
-  name: "Hinnendael Studios",
-  description: "Hinnendael Studios offers full music production, including audio re...",
-  distance: "4,714.2",
-  image: "/lovable-uploads/77ef91f8-c568-43b4-8b0b-472abea9b6f0.png",
-  educator_id: "1e4c4a2e-6431-4751-ac9b-b743c126766b",
-  educator_profile_id: "1e4c4a2e-6431-4751-ac9b-b743c126766b"
-}, {
-  id: 3,
-  name: "Kayla Peeters Music Lessons",
-  description: "As passionate educators and instructors, Kayla Peeters and her teac...",
-  distance: "4,714.2",
-  image: "/lovable-uploads/bb36ffc0-6b79-40df-af4c-b088ee7d30bb.png",
-  educator_id: "2e4c4a2e-6431-4751-ac9b-b743c126766b",
-  educator_profile_id: "2e4c4a2e-6431-4751-ac9b-b743c126766b"
-}];
+import { useDistance } from "@/hooks/useDistance";
 
 const categories = [{
   name: "Music and Performing Arts",
@@ -67,39 +42,115 @@ const categories = [{
   icon: Hammer
 }];
 
+interface EducatorProfile {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  categories: string[];
+  address: string;
+  distance?: {
+    miles: number;
+    kilometers: number;
+  } | null;
+  is_active: boolean;
+}
+
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [filteredBusinesses, setFilteredBusinesses] = useState(businesses);
+  const [educatorProfiles, setEducatorProfiles] = useState<EducatorProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { 
+    calculateDistanceFromStudent, 
+    loading: distanceLoading, 
+    isAuthenticated, 
+    studentAddress,
+    refetchAddress 
+  } = useDistance();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        console.log('User signed in, refreshing data');
+        refetchAddress();
+        fetchEducatorProfiles();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    fetchEducatorProfiles();
+  }, [selectedCategory, isAuthenticated]);
+
+  const fetchEducatorProfiles = async (searchTerm?: string) => {
+    try {
+      setLoading(true);
+      let query = supabase
+        .from('educator_profiles')
+        .select('id, name, description, image, categories, address, is_active')
+        .eq('is_active', true) 
+        .not('image', 'is', null)
+        .not('name', 'is', null)
+        .not('name', 'eq', '');
+
+      if (selectedCategory) {
+        query = query.contains('categories', [selectedCategory]);
+      }
+
+      const termToSearch = searchTerm !== undefined ? searchTerm : searchQuery;
+      if (termToSearch.trim()) {
+        query = query.or(`name.ilike.%${termToSearch.trim()}%,categories.cs.{"${termToSearch.trim()}"}`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      const profilesWithDistance = await Promise.all(
+        (data || []).map(async (profile) => {
+          let distance = null;
+          if (isAuthenticated && profile.address) {
+            distance = await calculateDistanceFromStudent(profile.address);
+          }
+          return {
+            ...profile,
+            distance: distance
+          };
+        })
+      );
+
+      setEducatorProfiles(profilesWithDistance);
+    } catch (error) {
+      console.error('Error fetching educator profiles:', error);
+      toast.error('Error loading educator profiles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (studentAddress && educatorProfiles.length > 0) {
+      console.log('Student address changed, recalculating distances');
+      fetchEducatorProfiles();
+    }
+  }, [studentAddress]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    filterBusinesses(query, selectedCategory);
+    fetchEducatorProfiles(query);
   };
 
   const handleReset = () => {
     setSearchQuery("");
     setSelectedCategory(null);
-    setFilteredBusinesses(businesses);
-  };
-
-  const filterBusinesses = (query: string, category: string | null) => {
-    let filtered = [...businesses];
-
-    if (query.trim()) {
-      const searchLower = query.toLowerCase();
-      filtered = filtered.filter(business => 
-        business.name.toLowerCase().includes(searchLower)
-      );
-    }
-
-    if (category) {
-      filtered = filtered.filter(business => 
-        business.name.includes(category)
-      );
-    }
-
-    setFilteredBusinesses(filtered);
+    fetchEducatorProfiles("");
   };
 
   const handleCategorySelect = (category: string | null) => {
@@ -130,18 +181,26 @@ const Index = () => {
         />
 
         <div className="flex-1 space-y-6">
-          {filteredBusinesses.map(business => (
-            <BusinessCard 
-              key={business.id} 
-              id={business.id} 
-              name={business.name} 
-              description={business.description} 
-              distance={business.distance} 
-              image={business.image}
-              educator_id={business.educator_id}
-              educator_profile_id={business.educator_profile_id}
-            />
-          ))}
+          {loading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : educatorProfiles.length === 0 ? (
+            <div className="text-center py-8">No educator profiles found</div>
+          ) : (
+            <div className="space-y-6">
+              {educatorProfiles.map((profile) => (
+                <BusinessCard
+                  key={profile.id}
+                  name={profile.name}
+                  description={profile.description}
+                  image={profile.image}
+                  distance={profile.distance 
+                    ? `${profile.distance.miles} mi (${profile.distance.kilometers} km)`
+                    : 'N/A'}
+                  educator_profile_id={profile.id}
+                />
+              ))}
+            </div>
+          )}
 
           <Pagination className="mt-8">
             <PaginationContent>
