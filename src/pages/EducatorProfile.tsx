@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { ClaimBanner } from "@/components/business/ClaimBanner";
@@ -10,6 +10,7 @@ import { RequestLessonForm } from "@/components/student/RequestLessonForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MessageSquare, Video, Calendar } from "lucide-react";
 
 interface EducatorProfile {
@@ -41,23 +42,12 @@ const EducatorProfile = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const profileId = location.state?.id;
-  const requestFormRef = useRef<HTMLDivElement>(null);
   
   const [showClaimBanner, setShowClaimBanner] = useState(true);
-  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [isRequestFormOpen, setIsRequestFormOpen] = useState(false);
   const [profile, setProfile] = useState<EducatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const scrollToRequestForm = () => {
-    setShowRequestForm(true);
-    setTimeout(() => {
-      requestFormRef.current?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
-  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -185,7 +175,11 @@ const EducatorProfile = () => {
                   <Calendar className="mx-auto mb-4 h-8 w-8 text-primary" />
                   <h3 className="font-semibold mb-2">Book a Lesson</h3>
                   <p className="text-sm text-gray-600 mb-4">Free introductory lesson (in person or online)</p>
-                  <Button variant="outline" className="w-full" onClick={scrollToRequestForm}>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => setIsRequestFormOpen(true)}
+                  >
                     Schedule Now
                   </Button>
                 </div>
@@ -224,19 +218,22 @@ const EducatorProfile = () => {
                 facebook_url={profile.facebook_url}
                 instagram_url={profile.instagram_url}
               />
-
-              {showRequestForm && (
-                <div ref={requestFormRef}>
-                  <RequestLessonForm 
-                    educatorId={profile.id}
-                    educatorProfileId={profile.id}
-                  />
-                </div>
-              )}
             </div>
           </div>
         </div>
       </main>
+
+      <Dialog open={isRequestFormOpen} onOpenChange={setIsRequestFormOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Request a Lesson</DialogTitle>
+          </DialogHeader>
+          <RequestLessonForm 
+            educatorId={profile.id}
+            educatorProfileId={profile.id}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
