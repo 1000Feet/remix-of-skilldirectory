@@ -37,6 +37,15 @@ const createSlug = (name: string) => {
     .replace(/(^-|-$)/g, '');
 };
 
+const getEmbedUrl = (url: string) => {
+  // Extract video ID from various YouTube URL formats
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2].length === 11 
+    ? `https://www.youtube.com/embed/${match[2]}`
+    : null;
+};
+
 const EducatorProfile = () => {
   const { slug } = useParams();
   const location = useLocation();
@@ -45,6 +54,7 @@ const EducatorProfile = () => {
   
   const [showClaimBanner, setShowClaimBanner] = useState(true);
   const [isRequestFormOpen, setIsRequestFormOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [profile, setProfile] = useState<EducatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +143,8 @@ const EducatorProfile = () => {
     );
   }
 
+  const embedUrl = profile.youtube_url ? getEmbedUrl(profile.youtube_url) : null;
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -168,7 +180,14 @@ const EducatorProfile = () => {
                   <Video className="mx-auto mb-4 h-8 w-8 text-primary" />
                   <h3 className="font-semibold mb-2">Watch Our Studio</h3>
                   <p className="text-sm text-gray-600 mb-4">YouTube video presentation of our work</p>
-                  <Button variant="outline" className="w-full">Watch Video</Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => setIsVideoModalOpen(true)}
+                    disabled={!embedUrl}
+                  >
+                    Watch Video
+                  </Button>
                 </div>
 
                 <div className="bg-[#F2FCE2] p-6 rounded-lg text-center">
@@ -192,11 +211,11 @@ const EducatorProfile = () => {
                   Start with a FREE VIDEO LESSON NOW!
                 </h2>
                 <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
-                  {profile.youtube_url ? (
+                  {embedUrl ? (
                     <iframe
                       width="100%"
                       height="100%"
-                      src={profile.youtube_url.replace('watch?v=', 'embed/')}
+                      src={embedUrl}
                       title="Video presentation"
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -232,6 +251,27 @@ const EducatorProfile = () => {
             educatorId={profile.id}
             educatorProfileId={profile.id}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Video Presentation</DialogTitle>
+          </DialogHeader>
+          <div className="aspect-video w-full">
+            {embedUrl && (
+              <iframe
+                width="100%"
+                height="100%"
+                src={embedUrl}
+                title="Video presentation"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
