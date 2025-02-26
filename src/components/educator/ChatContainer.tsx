@@ -35,12 +35,12 @@ export function ChatContainer() {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
-    const userMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setLoading(true);
-
     try {
+      setLoading(true);
+      const userMessage: Message = { role: 'user', content: input };
+      setMessages(prev => [...prev, userMessage]);
+      setInput('');
+
       const response = await getChatResponse(input);
       
       setMessages(prev => [...prev, { 
