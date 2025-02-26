@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getChatResponse } from "@/integrations/gemini/client";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -41,27 +41,12 @@ export function ChatContainer() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: { message: input },
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw error;
-      }
-
-      if (data?.response) {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: data.response 
-        }]);
-      } else {
-        console.error('Invalid response format:', data);
-        throw new Error('Invalid response format');
-      }
+      const response = await getChatResponse(input);
+      
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: response 
+      }]);
     } catch (error) {
       console.error('Chat error:', error);
       toast.error('Failed to get response from AI');
