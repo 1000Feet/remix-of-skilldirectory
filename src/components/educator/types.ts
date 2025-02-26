@@ -11,9 +11,7 @@ export interface EducatorProfile {
   facebook_url: string;
   instagram_url: string;
   youtube_url?: string;
-  ai_chatbot?: {
-    knowledge_base: string[];
-  };
+  ai_chatbot?: string;
   ai_voice_agent?: {
     knowledge_base: string[];
     voice_id: string;

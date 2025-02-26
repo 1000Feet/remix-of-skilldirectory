@@ -282,10 +282,13 @@ const EducatorProfile = () => {
         </DialogContent>
       </Dialog>
 
-      <ChatModal 
-        isOpen={isChatOpen}
-        onOpenChange={setIsChatOpen}
-      />
+      {isChatOpen && (
+        <ChatModal 
+          isOpen={isChatOpen} 
+          onOpenChange={setIsChatOpen}
+          profile={profile}
+        />
+      )}
     </div>
   );
 };

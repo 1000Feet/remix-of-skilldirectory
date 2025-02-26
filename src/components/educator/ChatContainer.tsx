@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -7,17 +6,33 @@ import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getChatResponse } from "@/integrations/gemini/client";
+import type { EducatorProfile } from "./types";
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
 
-const WELCOME_MESSAGE = "Hi! I'm your AI assistant. How can I help you today?";
+interface ChatContainerProps {
+  profile: EducatorProfile;
+}
 
-export function ChatContainer() {
+const getSuggestedQuestions = (profile: EducatorProfile) => [
+  "What services do you offer?",
+  "Where are you located?",
+  profile.website ? "Do you have a website?" : null,
+  (profile.facebook_url || profile.instagram_url) ? "How can I follow you on social media?" : null,
+  "How can I contact you?",
+].filter(Boolean);
+
+const WELCOME_MESSAGE = (profile: EducatorProfile) => `Hi! I'm Skill Directory, ${profile.name}'s AI assistant. I can help you learn more about their educational services, expertise, and teaching approach. Feel free to ask me anything about their offerings!\n\nHere are some questions you might be interested in:\n${getSuggestedQuestions(profile).map(q => `• ${q}`).join('\n')}`;
+
+export function ChatContainer({ profile }: ChatContainerProps) {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: WELCOME_MESSAGE }
+    { 
+      role: 'assistant', 
+      content: WELCOME_MESSAGE(profile) 
+    }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,7 +56,7 @@ export function ChatContainer() {
       setMessages(prev => [...prev, userMessage]);
       setInput('');
 
-      const response = await getChatResponse(input);
+      const response = await getChatResponse(input, profile);
       
       setMessages(prev => [...prev, { 
         role: 'assistant', 
@@ -52,7 +67,7 @@ export function ChatContainer() {
       toast.error('Failed to get response from AI');
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.'
+        content: 'I apologize, but I encountered an error. Please try asking your question again.'
       }]);
     } finally {
       setLoading(false);
@@ -85,7 +100,7 @@ export function ChatContainer() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
+            placeholder="Ask me anything about the educator's services..."
             className="pr-20"
           />
           <Button 
