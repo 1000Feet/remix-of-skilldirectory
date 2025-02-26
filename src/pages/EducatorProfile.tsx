@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { ClaimBanner } from "@/components/business/ClaimBanner";
@@ -41,11 +40,19 @@ const EducatorProfile = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const profileId = location.state?.id;
+  const requestFormRef = useRef<HTMLDivElement>(null);
   
   const [showClaimBanner, setShowClaimBanner] = useState(true);
   const [profile, setProfile] = useState<EducatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const scrollToRequestForm = () => {
+    requestFormRef.current?.scrollIntoView({ 
+      behavior: 'smooth',
+      block: 'start'
+    });
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -173,7 +180,9 @@ const EducatorProfile = () => {
                   <Calendar className="mx-auto mb-4 h-8 w-8 text-primary" />
                   <h3 className="font-semibold mb-2">Book a Lesson</h3>
                   <p className="text-sm text-gray-600 mb-4">Free introductory lesson (in person or online)</p>
-                  <Button variant="outline" className="w-full">Schedule Now</Button>
+                  <Button variant="outline" className="w-full" onClick={scrollToRequestForm}>
+                    Schedule Now
+                  </Button>
                 </div>
               </div>
             </div>
@@ -211,10 +220,12 @@ const EducatorProfile = () => {
                 instagram_url={profile.instagram_url}
               />
 
-              <RequestLessonForm 
-                educatorId={profile.id}
-                educatorProfileId={profile.id}
-              />
+              <div ref={requestFormRef}>
+                <RequestLessonForm 
+                  educatorId={profile.id}
+                  educatorProfileId={profile.id}
+                />
+              </div>
             </div>
           </div>
         </div>
