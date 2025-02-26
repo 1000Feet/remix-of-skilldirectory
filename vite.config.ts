@@ -23,10 +23,17 @@ export default defineConfig(({ mode }) => ({
     }
   },
   build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
     rollupOptions: {
       external: [
         '@supabase/auth-helpers-react'
       ],
+      output: {
+        manualChunks: undefined
+      }
     },
-  },
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000
+  }
 }));
