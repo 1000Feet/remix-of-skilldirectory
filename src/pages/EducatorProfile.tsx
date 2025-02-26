@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -43,15 +44,19 @@ const EducatorProfile = () => {
   const requestFormRef = useRef<HTMLDivElement>(null);
   
   const [showClaimBanner, setShowClaimBanner] = useState(true);
+  const [showRequestForm, setShowRequestForm] = useState(false);
   const [profile, setProfile] = useState<EducatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const scrollToRequestForm = () => {
-    requestFormRef.current?.scrollIntoView({ 
-      behavior: 'smooth',
-      block: 'start'
-    });
+    setShowRequestForm(true);
+    setTimeout(() => {
+      requestFormRef.current?.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
   };
 
   useEffect(() => {
@@ -220,12 +225,14 @@ const EducatorProfile = () => {
                 instagram_url={profile.instagram_url}
               />
 
-              <div ref={requestFormRef}>
-                <RequestLessonForm 
-                  educatorId={profile.id}
-                  educatorProfileId={profile.id}
-                />
-              </div>
+              {showRequestForm && (
+                <div ref={requestFormRef}>
+                  <RequestLessonForm 
+                    educatorId={profile.id}
+                    educatorProfileId={profile.id}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
