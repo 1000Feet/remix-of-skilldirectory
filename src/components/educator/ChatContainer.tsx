@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -39,22 +41,25 @@ export function ChatContainer() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: input }),
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: { message: input }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
+      if (error) {
+        throw error;
       }
 
-      const data = await response.json();
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      if (data?.response) {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: data.response 
+        }]);
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (error) {
       console.error('Chat error:', error);
+      toast.error('Failed to get response from AI');
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Sorry, I encountered an error. Please try again.'
