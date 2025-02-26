@@ -16,24 +16,45 @@ serve(async (req) => {
   }
 
   try {
-    const { message } = await req.json();
-    console.log('Received message:', message);
+    // Add debug logging
+    console.log('Request received:', req.method, req.url);
+    
+    // Validate request body
+    let body;
+    try {
+      body = await req.json();
+      console.log('Request body:', body);
+    } catch (e) {
+      console.error('Error parsing request body:', e);
+      throw new Error('Invalid request body');
+    }
+
+    const { message } = body;
+    if (!message) {
+      throw new Error('Message is required');
+    }
 
     const apiKey = Deno.env.get('GOOGLE_API_KEY');
     if (!apiKey) {
-      throw new Error('Google API key not found');
+      console.error('GOOGLE_API_KEY not found in environment variables');
+      throw new Error('API key not configured');
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    console.log('Generating response with Gemini...');
+    console.log('Calling Gemini API...');
     const result = await model.generateContent([
       { text: `You are a helpful AI assistant. Provide a concise and friendly response to: ${message}` }
     ]);
-    const response = await result.response;
+
+    if (!result || !result.response) {
+      throw new Error('Invalid response from Gemini API');
+    }
+
+    const response = result.response;
     const text = response.text();
-    console.log('Generated response:', text);
+    console.log('Gemini API response:', text);
 
     return new Response(
       JSON.stringify({ response: text }),
@@ -46,9 +67,11 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error in chat function:', error);
+    
+    // Ensure we always return a proper JSON response
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error.message || 'An unexpected error occurred',
         details: 'An error occurred while processing your request'
       }),
       { 

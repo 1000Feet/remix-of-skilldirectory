@@ -41,11 +41,16 @@ export function ChatContainer() {
     setLoading(true);
 
     try {
+      console.log('Sending message to Edge Function:', input);
+      
       const { data, error } = await supabase.functions.invoke('chat', {
         body: { message: input }
       });
 
+      console.log('Edge Function response:', { data, error });
+
       if (error) {
+        console.error('Supabase function error:', error);
         throw error;
       }
 
@@ -55,6 +60,7 @@ export function ChatContainer() {
           content: data.response 
         }]);
       } else {
+        console.error('Invalid response format:', data);
         throw new Error('Invalid response format');
       }
     } catch (error) {
