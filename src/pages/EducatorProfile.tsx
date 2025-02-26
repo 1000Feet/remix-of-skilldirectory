@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -12,6 +11,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MessageSquare, Video, Calendar } from "lucide-react";
+import { ChatModal } from "@/components/educator/ChatModal";
 
 interface EducatorProfile {
   id: string;
@@ -58,6 +58,7 @@ const EducatorProfile = () => {
   const [profile, setProfile] = useState<EducatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -173,7 +174,13 @@ const EducatorProfile = () => {
                   <MessageSquare className="mx-auto mb-4 h-8 w-8 text-primary" />
                   <h3 className="font-semibold mb-2">Chat with AI Assistant</h3>
                   <p className="text-sm text-gray-600 mb-4">Ask about our services to our AI Voice Agent!</p>
-                  <Button variant="outline" className="w-full">Start Chat</Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => setIsChatOpen(true)}
+                  >
+                    Start Chat
+                  </Button>
                 </div>
 
                 <div className="bg-[#F2FCE2] p-6 rounded-lg text-center">
@@ -274,6 +281,11 @@ const EducatorProfile = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ChatModal 
+        isOpen={isChatOpen}
+        onOpenChange={setIsChatOpen}
+      />
     </div>
   );
 };
