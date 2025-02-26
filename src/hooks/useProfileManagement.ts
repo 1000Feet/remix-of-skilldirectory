@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { UserType, StudentProfile, EducatorProfile } from '@/lib/auth-types';
 import { Database } from '@/integrations/supabase/types';
@@ -68,7 +69,7 @@ export const useProfileManagement = () => {
     }
   };
 
-  const updateProfile = async (userId: string, userType: UserType, profileData: any): Promise<StudentProfile | EducatorProfile> => {
+  const updateProfile = async (userId: string, userType: UserType, profileData: any): Promise<StudentProfile | EducatorProfile | null> => {
     try {
       console.log(`Updating ${userType} profile for user ${userId}`, profileData);
 
@@ -134,7 +135,7 @@ export const useProfileManagement = () => {
           .eq('user_id', userId)
           .single();
 
-        // If profile exists, just return it
+        // If profile exists, just return
         if (existingProfile) {
           console.log('Student profile already exists, skipping creation');
           return;
@@ -165,13 +166,13 @@ export const useProfileManagement = () => {
           .eq('user_id', userId)
           .single();
 
-        // If profile exists, just return it
+        // If profile exists, just return
         if (existingProfile) {
           console.log('Educator profile already exists, skipping creation');
           return;
         }
 
-        const { data: educatorProfile, error: educatorError } = await supabase
+        const { error: educatorError } = await supabase
           .from('educator_profiles')
           .insert({
             user_id: userId,
@@ -194,23 +195,12 @@ export const useProfileManagement = () => {
               voice_id: 'cjVigY5qzO86Huf0OWal'
             },
             subscription_tier: 'basic'
-          })
-          .select('*')
-          .single();
+          });
 
         if (educatorError) {
           console.error('Error creating educator profile:', educatorError);
           throw educatorError;
         }
-
-        return {
-          id: educatorProfile.id,
-          email: educatorProfile.email,
-          user_type: 'educator',
-          name: educatorProfile.name,
-          description: educatorProfile.description,
-          image: educatorProfile.image
-        };
       }
     } catch (error: any) {
       console.error('Error creating profile:', error);
