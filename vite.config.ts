@@ -21,7 +21,12 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
-      external: ['@supabase/auth-helpers-react'],
+      external: [
+        '@supabase/auth-helpers-react',
+        'next/router',
+        'next-themes',
+        'next'
+      ],
     },
   },
 }));
