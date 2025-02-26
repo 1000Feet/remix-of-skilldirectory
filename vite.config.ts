@@ -4,6 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
+  base: mode === 'production' ? '/' : '/',
   server: {
     host: "::",
     port: 8080,
@@ -30,7 +31,11 @@ export default defineConfig(({ mode }) => ({
         '@supabase/auth-helpers-react'
       ],
       output: {
-        manualChunks: undefined,
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        },
         format: 'es',
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
@@ -41,5 +46,8 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     manifest: true,
     cssCodeSplit: true
+  },
+  define: {
+    'process.env': process.env
   }
 }));

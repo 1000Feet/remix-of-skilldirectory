@@ -1,25 +1,21 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { env } from '@/config/env';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!env.supabaseUrl || !env.supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
 // Create a single instance of the Supabase client
 export const supabase = createClient<Database>(
-  supabaseUrl,
-  supabaseAnonKey,
+  env.supabaseUrl,
+  env.supabaseAnonKey,
   {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
       storage: localStorage,
-      storageKey: 'skilldirectory.auth.token'
     }
   }
 );
