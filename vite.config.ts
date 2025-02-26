@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -8,7 +9,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  base: '/',
+  base: '/skilldirectory/',
   plugins: [
     react(),
     mode === 'development' &&
@@ -21,7 +22,7 @@ export default defineConfig(({ mode }) => ({
       "pages": path.resolve(__dirname, "./src/pages"),
       "contexts": path.resolve(__dirname, "./src/contexts"),
       "integrations": path.resolve(__dirname, "./src/integrations"),
-    },
+    }
   },
   build: {
     rollupOptions: {
