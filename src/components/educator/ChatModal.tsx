@@ -1,5 +1,5 @@
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ChatContainer } from "./ChatContainer";
 
 interface ChatModalProps {
@@ -13,6 +13,9 @@ export function ChatModal({ isOpen, onOpenChange }: ChatModalProps) {
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Chat with AI Assistant</DialogTitle>
+          <DialogDescription>
+            Ask questions and get helpful responses from our AI assistant.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-hidden">
           <ChatContainer />
