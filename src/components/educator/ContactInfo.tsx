@@ -1,64 +1,66 @@
 
 import { Card } from "@/components/ui/card";
-import { Facebook, Instagram, Youtube } from "lucide-react";
-
-interface Social {
-  facebook: string;
-  instagram: string;
-  youtube?: string;
-}
+import { Facebook, Instagram, Globe, MapPin, Phone, Mail } from "lucide-react";
 
 interface ContactInfoProps {
   address: string | null;
   phone: string | null;
   email: string;
   website: string | null;
-  social: Social | null;
+  facebook_url: string | null;
+  instagram_url: string | null;
 }
 
-export const ContactInfo = ({ address, phone, email, website, social }: ContactInfoProps) => {
+export const ContactInfo = ({ 
+  address, 
+  phone, 
+  email, 
+  website,
+  facebook_url,
+  instagram_url 
+}: ContactInfoProps) => {
   return (
     <Card className="p-6">
       <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
       <div className="space-y-4">
-        {address && (
-          <div>
-            <h3 className="font-medium">Address</h3>
-            <p className="text-gray-600">{address}</p>
-          </div>
-        )}
-        {phone && (
-          <div>
-            <h3 className="font-medium">Phone</h3>
-            <p className="text-gray-600">{phone}</p>
-          </div>
-        )}
-        <div>
-          <h3 className="font-medium">Email</h3>
-          <p className="text-gray-600">{email}</p>
-        </div>
         {website && (
-          <div>
-            <h3 className="font-medium">Website</h3>
+          <div className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-gray-500" />
             <a 
               href={website}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              {website}
+              Visit Website
             </a>
           </div>
         )}
-      </div>
+        
+        {address && (
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-gray-500" />
+            <p className="text-gray-600">{address}</p>
+          </div>
+        )}
+        
+        {phone && (
+          <div className="flex items-center gap-2">
+            <Phone className="h-5 w-5 text-gray-500" />
+            <p className="text-gray-600">{phone}</p>
+          </div>
+        )}
+        
+        <div className="flex items-center gap-2">
+          <Mail className="h-5 w-5 text-gray-500" />
+          <p className="text-gray-600">{email}</p>
+        </div>
 
-      {social && Object.values(social).some(value => value) && (
-        <div className="mt-6">
-          <h3 className="font-medium mb-3">Social Media</h3>
-          <div className="flex gap-4">
-            {social.facebook && (
+        {(facebook_url || instagram_url) && (
+          <div className="flex gap-4 mt-4">
+            {facebook_url && (
               <a 
-                href={social.facebook}
+                href={facebook_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:text-primary/80 flex items-center gap-2"
@@ -67,9 +69,9 @@ export const ContactInfo = ({ address, phone, email, website, social }: ContactI
                 <span>Facebook</span>
               </a>
             )}
-            {social.instagram && (
+            {instagram_url && (
               <a 
-                href={social.instagram}
+                href={instagram_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:text-primary/80 flex items-center gap-2"
@@ -78,20 +80,9 @@ export const ContactInfo = ({ address, phone, email, website, social }: ContactI
                 <span>Instagram</span>
               </a>
             )}
-            {social.youtube && (
-              <a 
-                href={social.youtube}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:text-primary/80 flex items-center gap-2"
-              >
-                <Youtube className="h-5 w-5" />
-                <span>YouTube</span>
-              </a>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </Card>
   );
 };
