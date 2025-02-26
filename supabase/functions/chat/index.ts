@@ -1,6 +1,8 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// @ts-ignore // Ignore TS errors for Deno imports
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore
+import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,17 +27,10 @@ serve(async (req) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    const systemPrompt = `You are a helpful AI assistant. Your responses should be friendly, concise, and helpful.
-    
-Current conversation: User asks: ${message}
-
-Please provide a helpful response while:
-1. Being concise and clear
-2. Maintaining a friendly tone
-3. Providing accurate information`;
-
     console.log('Generating response with Gemini...');
-    const result = await model.generateContent(systemPrompt);
+    const result = await model.generateContent([
+      { text: `You are a helpful AI assistant. Provide a concise and friendly response to: ${message}` }
+    ]);
     const response = await result.response;
     const text = response.text();
     console.log('Generated response:', text);
@@ -48,7 +43,7 @@ Please provide a helpful response while:
           'Content-Type': 'application/json'
         },
       },
-    )
+    );
   } catch (error) {
     console.error('Error in chat function:', error);
     return new Response(
@@ -63,6 +58,6 @@ Please provide a helpful response while:
           'Content-Type': 'application/json'
         },
       },
-    )
+    );
   }
-})
+});
