@@ -99,78 +99,6 @@ export type Database = {
         }
         Relationships: []
       }
-      educator_profiles_duplicate: {
-        Row: {
-          about_business: string | null
-          address: string | null
-          ai_chatbot: Json | null
-          ai_voice_agent: Json | null
-          categories: string[] | null
-          created_at: string
-          description: string | null
-          email: string
-          facebook_url: string | null
-          id: string
-          image: string | null
-          instagram_url: string | null
-          is_active: boolean | null
-          name: string
-          phone: string | null
-          subscription_tier: string | null
-          tags: string[] | null
-          updated_at: string
-          user_id: string
-          website: string | null
-          youtube_url: string | null
-        }
-        Insert: {
-          about_business?: string | null
-          address?: string | null
-          ai_chatbot?: Json | null
-          ai_voice_agent?: Json | null
-          categories?: string[] | null
-          created_at?: string
-          description?: string | null
-          email: string
-          facebook_url?: string | null
-          id?: string
-          image?: string | null
-          instagram_url?: string | null
-          is_active?: boolean | null
-          name: string
-          phone?: string | null
-          subscription_tier?: string | null
-          tags?: string[] | null
-          updated_at?: string
-          user_id: string
-          website?: string | null
-          youtube_url?: string | null
-        }
-        Update: {
-          about_business?: string | null
-          address?: string | null
-          ai_chatbot?: Json | null
-          ai_voice_agent?: Json | null
-          categories?: string[] | null
-          created_at?: string
-          description?: string | null
-          email?: string
-          facebook_url?: string | null
-          id?: string
-          image?: string | null
-          instagram_url?: string | null
-          is_active?: boolean | null
-          name?: string
-          phone?: string | null
-          subscription_tier?: string | null
-          tags?: string[] | null
-          updated_at?: string
-          user_id?: string
-          website?: string | null
-          youtube_url?: string | null
-        }
-        Relationships: []
-      }
       lesson_requests: {
         Row: {
           created_at: string
@@ -272,48 +200,6 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      student_profiles_duplicate: {
-        Row: {
-          address: string | null
-          avatar_url: string | null
-          created_at: string
-          email: string
-          first_name: string | null
-          id: string
-          last_name: string | null
-          phone: string | null
-          updated_at: string
-          user_id: string
-          user_type: Database["public"]["Enums"]["user_type"]
-        }
-        Insert: {
-          address?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          email: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          phone?: string | null
-          updated_at?: string
-          user_id: string
-          user_type?: Database["public"]["Enums"]["user_type"]
-        }
-        Update: {
-          address?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          email?: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          phone?: string | null
-          updated_at?: string
-          user_id?: string
-          user_type?: Database["public"]["Enums"]["user_type"]
         }
         Relationships: []
       }
