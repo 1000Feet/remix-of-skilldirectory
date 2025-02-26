@@ -8,17 +8,18 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { message } = await req.json()
+    const { message } = await req.json();
     console.log('Received message:', message);
 
-    const apiKey = Deno.env.get('GOOGLE_API_KEY')
+    const apiKey = Deno.env.get('GOOGLE_API_KEY');
     if (!apiKey) {
-      throw new Error('Google API key not found')
+      throw new Error('Google API key not found');
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -42,7 +43,10 @@ Please provide a helpful response while:
     return new Response(
       JSON.stringify({ response: text }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        },
       },
     )
   } catch (error) {
@@ -54,7 +58,10 @@ Please provide a helpful response while:
       }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        },
       },
     )
   }

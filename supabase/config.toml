@@ -1,1 +1,11 @@
+
 project_id = "sheslhegcubntqohlgts"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[functions]
+[functions.chat]
+verify_jwt = false
