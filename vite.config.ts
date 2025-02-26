@@ -30,10 +30,16 @@ export default defineConfig(({ mode }) => ({
         '@supabase/auth-helpers-react'
       ],
       output: {
-        manualChunks: undefined
+        manualChunks: undefined,
+        format: 'es',
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
       }
     },
     sourcemap: false,
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 1000,
+    manifest: true,
+    cssCodeSplit: true
   }
 }));
