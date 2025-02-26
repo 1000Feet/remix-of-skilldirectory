@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,9 +23,7 @@ interface EducatorProfile {
   facebook_url: string;
   instagram_url: string;
   youtube_url?: string;
-  ai_chatbot?: {
-    knowledge_base: string[];
-  };
+  ai_chatbot?: string;
   ai_voice_agent?: {
     knowledge_base: string[];
     voice_id: string;
@@ -57,7 +54,7 @@ export function EducatorProfileForm({ initialData, onSuccess }: FormProps) {
     facebook_url: initialData?.facebook_url || '',
     instagram_url: initialData?.instagram_url || '',
     youtube_url: initialData?.youtube_url || '',
-    ai_chatbot: initialData?.ai_chatbot || { knowledge_base: [] },
+    ai_chatbot: initialData?.ai_chatbot || '',
     ai_voice_agent: initialData?.ai_voice_agent || { 
       knowledge_base: [], 
       voice_id: 'cjVigY5qzO86Huf0OWal' 
@@ -92,8 +89,11 @@ export function EducatorProfileForm({ initialData, onSuccess }: FormProps) {
     }));
   };
 
-  const handleChatbotChange = (ai_chatbot: { knowledge_base: string[] }) => {
-    setFormData(prev => ({ ...prev, ai_chatbot }));
+  const handleChatbotChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      ai_chatbot: value
+    }));
   };
 
   const handleVoiceAgentChange = (ai_voice_agent: { knowledge_base: string[], voice_id: string }) => {

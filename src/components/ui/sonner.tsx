@@ -1,14 +1,14 @@
-import { useTheme } from "next-themes"
+import { useColorMode } from "@theme-ui/core"
 import { Toaster as Sonner } from "sonner"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { colorMode } = useColorMode()
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={colorMode as "light" | "dark"}
       className="toaster group"
       toastOptions={{
         classNames: {

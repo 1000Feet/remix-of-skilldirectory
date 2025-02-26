@@ -1,42 +1,107 @@
 import { useState, useEffect } from "react";
-import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
-import { useRouter } from "next/router";
+import { useNavigate, Link } from "react-router-dom";
 import { Header } from "@/components/Header";
-import { AuthButtonClient } from "@/components/auth-button-client";
-import { AccountForm } from "@/components/account-form";
-import { EducatorProfile } from "@/components/educator/EducatorProfile";
+import { EducatorProfileForm } from "@/components/educator/EducatorProfileForm";
+import { LessonRequests } from "@/components/educator/LessonRequests";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import type { EducatorProfile } from "@/components/educator/types";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
+
+const createSlug = (name: string) => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+};
 
 export default function EducatorDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const supabaseClient = useSupabaseClient();
-  const session = useSession();
-  const router = useRouter();
+  const [profileData, setProfileData] = useState<EducatorProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (!session) {
-      router.push("/");
+    if (!user) {
+      navigate('/auth');
+      return;
     }
-  }, [session, router]);
+    if (user?.user_metadata?.user_type !== 'educator') {
+      navigate('/');
+      return;
+    }
 
-  const user = session?.user;
+    const fetchEducatorProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('educator_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching educator profile:', error);
+          return;
+        }
+
+        setProfileData(data);
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEducatorProfile();
+  }, [user, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return null;
   }
+
+  const handleProfileUpdate = (updatedProfile: EducatorProfile) => {
+    setProfileData(updatedProfile);
+  };
+
+  const profileSlug = profileData?.name ? createSlug(profileData.name) : user.id;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto py-6 px-4 space-y-8">
         <div className="flex justify-end">
-          <AuthButtonClient />
+          <Link 
+            to={`/educator/${profileSlug}`} 
+            target="_blank"
+            className="inline-flex"
+          >
+            <Button variant="outline" className="gap-2">
+              <ExternalLink className="h-4 w-4" />
+              View Public Profile
+            </Button>
+          </Link>
         </div>
-        <AccountForm
-          session={session}
-          supabaseClient={supabaseClient}
-          setIsModalOpen={setIsModalOpen}
-        />
-        <EducatorProfile user={user} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <EducatorProfileForm 
+              initialData={profileData} 
+              onSuccess={handleProfileUpdate}
+            />
+          </div>
+          <div className="space-y-6">
+            <LessonRequests />
+          </div>
+        </div>
       </main>
     </div>
   );
