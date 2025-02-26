@@ -1,13 +1,13 @@
 
 // @ts-ignore // Ignore TS errors for Deno imports
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// @ts-ignore
-import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -40,24 +40,40 @@ serve(async (req) => {
       throw new Error('API key not configured');
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
     console.log('Calling Gemini API...');
-    const result = await model.generateContent([
-      { text: `You are a helpful AI assistant. Provide a concise and friendly response to: ${message}` }
-    ]);
+    
+    // Format the request according to Gemini's API specifications
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `You are a helpful AI assistant. Provide a concise and friendly response to: ${message}`
+          }]
+        }]
+      })
+    });
 
-    if (!result || !result.response) {
-      throw new Error('Invalid response from Gemini API');
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Gemini API error:', errorData);
+      throw new Error('Failed to get response from Gemini API');
     }
 
-    const response = result.response;
-    const text = response.text();
-    console.log('Gemini API response:', text);
+    const data = await response.json();
+    console.log('Gemini API response:', data);
+
+    // Extract the response text from the Gemini API response
+    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!responseText) {
+      throw new Error('Invalid response format from Gemini API');
+    }
 
     return new Response(
-      JSON.stringify({ response: text }),
+      JSON.stringify({ response: responseText }),
       { 
         headers: { 
           ...corsHeaders, 
