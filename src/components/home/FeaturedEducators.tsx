@@ -14,8 +14,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/hooks/useFavorites";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { RatingDisplay } from "@/components/shared/RatingDisplay";
-import { useEducatorRatings } from "@/hooks/useEducatorRatings";
 
 interface EducatorProfile {
   id: string;
@@ -27,21 +25,13 @@ interface EducatorProfile {
 export const FeaturedEducators = () => {
   const [educators, setEducators] = useState<EducatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ratings, setRatings] = useState<{ [key: string]: { average: number; count: number } }>({});
   const carouselRef = useRef<HTMLDivElement>(null);
   const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [api, setApi] = useState<any>(null);
   const { user } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const { ratings } = useEducatorRatings(educators.map(e => e.id));
   const isStudent = user?.user_metadata?.user_type === 'student';
-
-  // Create URL-friendly slug from business name
-  const createSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-  };
 
   // Auto-scroll function
   const runAutoplay = useCallback(() => {
@@ -75,46 +65,58 @@ export const FeaturedEducators = () => {
   }, [api, runAutoplay]);
 
   useEffect(() => {
+    const fetchFeaturedEducators = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('educator_profiles')
+          .select('id, name, image, categories')
+          .eq('is_active', true)
+          .eq('is_featured', true)
+          .not('image', 'is', null)
+          .not('name', 'is', null)
+          .limit(6);
+
+        if (error) throw error;
+
+        setEducators(data || []);
+
+        // Fetch ratings for all featured educators
+        const ratingsData: { [key: string]: { average: number; count: number } } = {};
+        for (const educator of data || []) {
+          const { data: reviews } = await supabase
+            .from('reviews')
+            .select('rating')
+            .eq('educator_id', educator.id);
+
+          if (reviews && reviews.length > 0) {
+            const avg = reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length;
+            ratingsData[educator.id] = {
+              average: Math.round(avg * 10) / 10,
+              count: reviews.length
+            };
+          } else {
+            ratingsData[educator.id] = { average: 0, count: 0 };
+          }
+        }
+        setRatings(ratingsData);
+      } catch (error) {
+        console.error('Error fetching featured educators:', error);
+        toast.error('Error loading featured educators');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchFeaturedEducators();
   }, []);
 
-  const fetchFeaturedEducators = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('educator_profiles')
-        .select('id, name, image, categories')
-        .eq('is_active', true)
-        .eq('is_featured', true)
-        .not('image', 'is', null)
-        .not('name', 'is', null)
-        .limit(6);
-
-      if (error) {
-        throw error;
-      }
-
-      setEducators(data || []);
-    } catch (error) {
-      console.error('Error fetching featured educators:', error);
-      toast.error('Error loading featured educators');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleFavoriteClick = (e: React.MouseEvent, educatorId: string) => {
-    e.preventDefault(); // Prevent navigation
+    e.preventDefault();
     toggleFavorite(educatorId);
   };
 
-  if (loading) {
-    return null;
-  }
-
-  if (educators.length === 0) {
-    return null;
-  }
+  if (loading || educators.length === 0) return null;
 
   return (
     <section className="py-12 bg-white">
@@ -136,16 +138,13 @@ export const FeaturedEducators = () => {
                 clearTimeout(autoplayTimerRef.current);
               }
             }}
-            onMouseLeave={() => {
-              runAutoplay();
-            }}
+            onMouseLeave={runAutoplay}
           >
             <CarouselContent>
               {educators.map(educator => (
                 <CarouselItem key={educator.id} className="md:basis-1/2 lg:basis-1/3">
                   <Link 
-                    to={`/educator/${createSlug(educator.name)}`}
-                    state={{ id: educator.id }}
+                    to={`/educator/${educator.name.toLowerCase().replace(/\s+/g, '-')}`}
                     className="block relative"
                   >
                     <div className="p-4">
@@ -174,17 +173,11 @@ export const FeaturedEducators = () => {
                         </div>
                         <div className="p-4">
                           <h3 className="font-semibold text-lg mb-1">{educator.name}</h3>
-                          {ratings[educator.id] && (
-                            <div className="mb-2">
-                              <RatingDisplay
-                                rating={ratings[educator.id].averageRating}
-                                reviewCount={ratings[educator.id].reviewCount}
-                              />
-                            </div>
-                          )}
                           <p className="text-gray-600 text-sm mb-2">{educator.categories?.[0] || 'Multiple Categories'}</p>
                           <div className="flex items-center gap-1">
-      
+                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                            <span className="text-sm font-medium">{ratings[educator.id]?.average || 0}</span>
+                            <span className="text-sm text-gray-500">({ratings[educator.id]?.count || 0})</span>
                           </div>
                         </div>
                       </div>

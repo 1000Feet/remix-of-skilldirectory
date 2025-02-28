@@ -1,209 +1,216 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export interface Review {
   id: string;
   educator_id: string;
   student_id: string;
   rating: number;
-  review_text: string;
+  review_text: string | null;
   created_at: string;
   updated_at: string;
   student_name?: string;
 }
 
-type ReviewWithProfile = {
-  id: string;
-  educator_id: string;
-  student_id: string;
-  rating: number;
-  review_text: string;
-  created_at: string;
-  updated_at: string;
-  student_profiles: {
-    name: string;
-  } | null;
-}
-
-export const useReviews = (educatorId: string) => {
+export const useReviews = (educatorId?: string) => {
+  const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentUserReview, setCurrentUserReview] = useState<Review | null>(null);
+  const [userReview, setUserReview] = useState<Review | null>(null);
+  const [averageRating, setAverageRating] = useState<number>(0);
 
   const fetchReviews = async () => {
+    if (!educatorId) return;
+
     try {
-      setLoading(true);
-      const { data, error: queryError } = await supabase
+      const { data, error } = await supabase
         .from('reviews')
         .select(`
-          id,
-          educator_id,
-          student_id,
-          rating,
-          review_text,
-          created_at,
-          updated_at,
-          student_profiles (
-            name
-          )
+          *,
+          student_profiles(name)
         `)
         .eq('educator_id', educatorId)
-        .order('created_at', { ascending: false }) as { data: ReviewWithProfile[] | null; error: any };
+        .order('created_at', { ascending: false });
 
-      if (queryError) throw queryError;
+      if (error) throw error;
 
-      if (data) {
-        const formattedReviews: Review[] = data.map(review => ({
-          id: review.id,
-          educator_id: review.educator_id,
-          student_id: review.student_id,
-          rating: review.rating,
-          review_text: review.review_text,
-          created_at: review.created_at,
-          updated_at: review.updated_at,
-          student_name: review.student_profiles?.name || 'Anonymous'
-        }));
-        setReviews(formattedReviews);
+      const reviewsWithNames = data.map(review => ({
+        ...review,
+        student_name: review.student_profiles?.name
+      }));
 
-        // Update current user review if it exists
-        const user = supabase.auth.getUser();
-        if (user) {
-          const studentId = (await user).data.user?.user_metadata?.student_id;
-          if (studentId) {
-            const userReview = formattedReviews.find(r => r.student_id === studentId);
-            setCurrentUserReview(userReview || null);
-          }
+      setReviews(reviewsWithNames);
+
+      // Calculate average rating
+      if (reviewsWithNames.length > 0) {
+        const avg = reviewsWithNames.reduce((acc, curr) => acc + curr.rating, 0) / reviewsWithNames.length;
+        setAverageRating(Math.round(avg * 10) / 10);
+      }
+
+      // Find user's review if they're a student
+      if (user) {
+        const { data: studentProfile } = await supabase
+          .from('student_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (studentProfile) {
+          const userReview = reviewsWithNames.find(
+            review => review.student_id === studentProfile.id
+          );
+          setUserReview(userReview || null);
         }
       }
-    } catch (err) {
-      console.error('Error fetching reviews:', err);
-      setError(err instanceof Error ? err.message : 'Error fetching reviews');
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      toast.error('Failed to load reviews');
     } finally {
       setLoading(false);
     }
   };
 
-  const addReview = async (review: Omit<Review, 'id' | 'created_at' | 'updated_at' | 'student_name'>) => {
+  const addReview = async (rating: number, reviewText: string) => {
+    if (!user) {
+      toast.error('You must be logged in to leave a review');
+      return;
+    }
+
     try {
-      const { data, error: insertError } = await supabase
-        .from('reviews')
-        .insert([review])
-        .select(`
-          id,
-          educator_id,
-          student_id,
-          rating,
-          review_text,
-          created_at,
-          updated_at,
-          student_profiles (
-            name
-          )
-        `)
-        .single() as { data: ReviewWithProfile | null; error: any };
+      // First get the student profile id
+      const { data: studentProfile, error: studentError } = await supabase
+        .from('student_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
 
-      if (insertError) throw insertError;
-
-      if (data) {
-        const newReview: Review = {
-          id: data.id,
-          educator_id: data.educator_id,
-          student_id: data.student_id,
-          rating: data.rating,
-          review_text: data.review_text,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-          student_name: data.student_profiles?.name || 'Anonymous'
-        };
-
-        setReviews(prev => [newReview, ...prev]);
-        setCurrentUserReview(newReview);
+      if (studentError || !studentProfile) {
+        throw new Error('Student profile not found');
       }
-    } catch (err) {
-      console.error('Error adding review:', err);
-      throw err;
+
+      const { data, error } = await supabase
+        .from('reviews')
+        .insert({
+          educator_id: educatorId,
+          student_id: studentProfile.id,
+          rating,
+          review_text: reviewText
+        })
+        .select(`
+          *,
+          student_profiles(name)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      const newReview = {
+        ...data,
+        student_name: data.student_profiles?.name
+      };
+
+      setReviews(prev => [newReview, ...prev]);
+      setUserReview(newReview);
+      toast.success('Review added successfully');
+      
+      // Update average rating
+      const newAvg = (averageRating * reviews.length + rating) / (reviews.length + 1);
+      setAverageRating(Math.round(newAvg * 10) / 10);
+    } catch (error) {
+      console.error('Error adding review:', error);
+      toast.error('Failed to add review');
     }
   };
 
-  const updateReview = async (reviewId: string, updates: Partial<Omit<Review, 'id' | 'created_at' | 'updated_at' | 'student_name'>>) => {
+  const updateReview = async (rating: number, reviewText: string) => {
+    if (!userReview) return;
+
     try {
-      const { data, error: updateError } = await supabase
+      const { data, error } = await supabase
         .from('reviews')
-        .update(updates)
-        .eq('id', reviewId)
-        .select(`
-          id,
-          educator_id,
-          student_id,
+        .update({
           rating,
-          review_text,
-          created_at,
-          updated_at,
-          student_profiles (
-            name
-          )
+          review_text: reviewText,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userReview.id)
+        .select(`
+          *,
+          student_profiles(name)
         `)
-        .single() as { data: ReviewWithProfile | null; error: any };
+        .single();
 
-      if (updateError) throw updateError;
+      if (error) throw error;
 
-      if (data) {
-        const updatedReview: Review = {
-          id: data.id,
-          educator_id: data.educator_id,
-          student_id: data.student_id,
-          rating: data.rating,
-          review_text: data.review_text,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-          student_name: data.student_profiles?.name || 'Anonymous'
-        };
+      const updatedReview = {
+        ...data,
+        student_name: data.student_profiles?.name
+      };
 
-        setReviews(prev => prev.map(review => review.id === reviewId ? updatedReview : review));
-        setCurrentUserReview(updatedReview);
-      }
-    } catch (err) {
-      console.error('Error updating review:', err);
-      throw err;
+      setReviews(prev => 
+        prev.map(review => 
+          review.id === updatedReview.id ? updatedReview : review
+        )
+      );
+      setUserReview(updatedReview);
+      
+      // Update average rating
+      const newAvg = reviews.reduce((acc, curr) => 
+        curr.id === updatedReview.id ? acc + rating : acc + curr.rating, 0
+      ) / reviews.length;
+      setAverageRating(Math.round(newAvg * 10) / 10);
+      
+      toast.success('Review updated successfully');
+    } catch (error) {
+      console.error('Error updating review:', error);
+      toast.error('Failed to update review');
     }
   };
 
-  const deleteReview = async (reviewId: string) => {
+  const deleteReview = async () => {
+    if (!userReview) return;
+
     try {
-      const { error: deleteError } = await supabase
+      const { error } = await supabase
         .from('reviews')
         .delete()
-        .eq('id', reviewId);
+        .eq('id', userReview.id);
 
-      if (deleteError) throw deleteError;
+      if (error) throw error;
 
-      setReviews(prev => prev.filter(review => review.id !== reviewId));
-      setCurrentUserReview(null);
-    } catch (err) {
-      console.error('Error deleting review:', err);
-      throw err;
+      setReviews(prev => prev.filter(review => review.id !== userReview.id));
+      setUserReview(null);
+      
+      // Update average rating
+      const remainingReviews = reviews.filter(review => review.id !== userReview.id);
+      if (remainingReviews.length > 0) {
+        const newAvg = remainingReviews.reduce((acc, curr) => acc + curr.rating, 0) / remainingReviews.length;
+        setAverageRating(Math.round(newAvg * 10) / 10);
+      } else {
+        setAverageRating(0);
+      }
+      
+      toast.success('Review deleted successfully');
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      toast.error('Failed to delete review');
     }
-  };
-
-  const calculateAverageRating = () => {
-    if (reviews.length === 0) return 0;
-    const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
-    return Number((sum / reviews.length).toFixed(1));
   };
 
   useEffect(() => {
     fetchReviews();
-  }, [educatorId]);
+  }, [educatorId, user]);
 
   return {
     reviews,
+    userReview,
+    averageRating,
     loading,
-    error,
-    currentUserReview,
     addReview,
     updateReview,
     deleteReview,
-    calculateAverageRating
+    isStudent: !!user && user.id ? true : false 
   };
 };

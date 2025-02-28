@@ -1,12 +1,12 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { ImageIcon, Heart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ImageIcon, Heart, Star } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/hooks/useFavorites";
-import { RatingDisplay } from '@/components/shared/RatingDisplay';
-import { useEducatorRatings } from '@/hooks/useEducatorRatings';
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
 interface BusinessCardProps {
   name: string;
@@ -28,8 +28,6 @@ export function BusinessCard({
 }: BusinessCardProps) {
   const { user } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const { ratings } = useEducatorRatings([educator_profile_id]);
-  const rating = ratings[educator_profile_id];
   const isStudent = user?.user_metadata?.user_type === 'student';
   
   // Create URL-friendly slug from business name
@@ -39,6 +37,29 @@ export function BusinessCard({
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
   };
+
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [reviewCount, setReviewCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchRatings = async () => {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('educator_id', educator_profile_id);
+
+      if (!error && data) {
+        const reviews = data;
+        setReviewCount(reviews.length);
+        if (reviews.length > 0) {
+          const avg = reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length;
+          setAverageRating(Math.round(avg * 10) / 10);
+        }
+      }
+    };
+
+    fetchRatings();
+  }, [educator_profile_id]);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent card navigation
@@ -86,14 +107,12 @@ export function BusinessCard({
               </Button>
             )}
           </div>
-          {rating && (
-            <RatingDisplay
-              rating={rating.averageRating}
-              reviewCount={rating.reviewCount}
-              className="mb-2"
-            />
-          )}
           <p className="text-muted-foreground line-clamp-2">{description}</p>
+          <div className="flex items-center gap-1 text-sm">
+            <Star className="h-4 w-4 text-yellow-400 fill-current" />
+            <span>{averageRating || 0}</span>
+            <span className="text-gray-500">({reviewCount})</span>
+          </div>
         </div>
         <div className="flex items-center justify-between mt-4">
           {distance && (
