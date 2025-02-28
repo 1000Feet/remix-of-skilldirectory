@@ -7,10 +7,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, GraduationCap, User } from "lucide-react";
+import { ChevronDown, GraduationCap, User, Settings, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 interface HeaderProps {
   searchQuery?: string;
@@ -20,6 +22,28 @@ interface HeaderProps {
 export const Header = ({ searchQuery, onSearchChange }: HeaderProps = {}) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error checking admin status:', error);
+        return;
+      }
+      
+      setIsAdmin(!!data);
+    };
+
+    checkAdminStatus();
+  }, [user]);
 
   const handleSignOut = async () => {
     try {
@@ -96,8 +120,21 @@ export const Header = ({ searchQuery, onSearchChange }: HeaderProps = {}) => {
                           </Link>
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onSelect={handleSignOut} className="cursor-pointer">
-                        Sign Out
+                      {isAdmin && (
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin" className="w-full cursor-pointer flex items-center gap-2">
+                            <Settings className="h-4 w-4" />
+                            Admin
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="cursor-pointer text-red-600 focus:text-red-600"
+                        onSelect={handleSignOut}
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sign Out</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

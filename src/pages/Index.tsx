@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
@@ -49,6 +48,7 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [educatorProfiles, setEducatorProfiles] = useState<EducatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const educatorListingsRef = useRef<HTMLDivElement>(null);
   const { 
     calculateDistanceFromStudent, 
     loading: distanceLoading, 
@@ -92,7 +92,11 @@ const Index = () => {
 
       const termToSearch = searchTerm !== undefined ? searchTerm : searchQuery;
       if (termToSearch.trim()) {
-        query = query.or(`name.ilike.%${termToSearch.trim()}%,categories.cs.{"${termToSearch.trim()}"}`);
+        query = query.or(
+          `name.ilike.%${termToSearch.trim()}%,` +
+          `description.ilike.%${termToSearch.trim()}%,` +
+          `categories.cs.{"${termToSearch.trim()}"}`
+        );
       }
 
       const { data, error } = await query;
@@ -133,6 +137,15 @@ const Index = () => {
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     fetchEducatorProfiles(query);
+    
+    setTimeout(() => {
+      if (educatorListingsRef.current) {
+        educatorListingsRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    }, 100);
   };
 
   const handleReset = () => {
@@ -168,7 +181,7 @@ const Index = () => {
           onSelectCategory={handleCategorySelect}
         />
 
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 space-y-6" ref={educatorListingsRef}>
           {loading ? (
             <div className="text-center py-8">Loading...</div>
           ) : educatorProfiles.length === 0 ? (

@@ -1,6 +1,12 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Heart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFavorites } from "@/hooks/useFavorites";
+import { RatingDisplay } from '@/components/shared/RatingDisplay';
+import { useEducatorRatings } from '@/hooks/useEducatorRatings';
+import { cn } from "@/lib/utils";
 
 interface BusinessCardProps {
   name: string;
@@ -20,6 +26,12 @@ export function BusinessCard({
   id,
   educator_profile_id 
 }: BusinessCardProps) {
+  const { user } = useAuth();
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const { ratings } = useEducatorRatings([educator_profile_id]);
+  const rating = ratings[educator_profile_id];
+  const isStudent = user?.user_metadata?.user_type === 'student';
+  
   // Create URL-friendly slug from business name
   const createSlug = (name: string) => {
     return name
@@ -28,8 +40,15 @@ export function BusinessCard({
       .replace(/(^-|-$)/g, '');
   };
 
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent card navigation
+    if (educator_profile_id) {
+      toggleFavorite(educator_profile_id);
+    }
+  };
+
   return (
-    <Card className="flex overflow-hidden hover:shadow-lg transition-shadow duration-300 mb-4">
+    <Card className="flex overflow-hidden hover:shadow-lg transition-shadow duration-300 mb-4 relative">
       <div className="w-48 h-48 flex-shrink-0 bg-gray-50">
         {image ? (
           <img 
@@ -49,7 +68,31 @@ export function BusinessCard({
       </div>
       <CardContent className="flex-1 p-6 flex flex-col justify-between">
         <div>
-          <h3 className="text-2xl font-semibold tracking-tight mb-2">{name}</h3>
+          <div className="flex justify-between items-start">
+            <h3 className="text-2xl font-semibold tracking-tight mb-2">{name}</h3>
+            {isStudent && educator_profile_id && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={handleFavoriteClick}
+              >
+                <Heart 
+                  className={cn(
+                    "h-5 w-5",
+                    isFavorite(educator_profile_id) ? "fill-red-500 text-red-500" : "text-gray-500"
+                  )} 
+                />
+              </Button>
+            )}
+          </div>
+          {rating && (
+            <RatingDisplay
+              rating={rating.averageRating}
+              reviewCount={rating.reviewCount}
+              className="mb-2"
+            />
+          )}
           <p className="text-muted-foreground line-clamp-2">{description}</p>
         </div>
         <div className="flex items-center justify-between mt-4">

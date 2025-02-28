@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 
 export const Footer = () => {
   return (
@@ -15,14 +16,17 @@ export const Footer = () => {
             <a href="#" className="hover:text-primary-foreground/90">PRIVACY POLICY</a>
             <a href="#" className="hover:text-primary-foreground/90">TERMS & CONDITIONS</a>
             <a href="#" className="hover:text-primary-foreground/90">SUPPORT</a>
-            <a href="#" className="bg-[#88C440] text-white px-4 py-2 rounded-md hover:bg-[#78b32d] transition-colors font-medium">
+            <Link 
+              to="/auth?signup=educator" 
+              className="bg-[#88C440] text-white px-4 py-2 rounded-md hover:bg-[#78b32d] transition-colors font-medium"
+            >
               SKILL PROVIDER? SIGN UP HERE
-            </a>
+            </Link>
           </nav>
         </div>
         <div className="flex justify-between items-center mt-6 pt-6 border-t border-gray-700 text-sm text-gray-400">
           <div>
-            Copyright © 2025 <span className="text-[#88C440]">SKILLDIRECTORY.COM</span>. All Rights Reserved.
+            Copyright 2025 <span className="text-[#88C440]">SKILLDIRECTORY.COM</span>. All Rights Reserved.
           </div>
           <div>
             Website by <a href="#" className="text-[#88C440]">1000FEET</a>

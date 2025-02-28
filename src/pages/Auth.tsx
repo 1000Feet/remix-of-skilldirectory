@@ -1,18 +1,23 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const signupParam = queryParams.get('signup');
+  
+  const [isLogin, setIsLogin] = useState(!signupParam);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [userType, setUserType] = useState<'student' | 'educator'>('student');
+  const [userType, setUserType] = useState<'student' | 'educator'>(
+    signupParam === 'educator' ? 'educator' : 'student'
+  );
   const { signIn, signUp, user } = useAuth();
 
   // Redirect if user is already logged in

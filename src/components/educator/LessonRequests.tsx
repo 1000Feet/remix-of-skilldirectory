@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface Student {
   user_id: string;
@@ -23,6 +26,7 @@ interface LessonRequest {
   proposed_time: string;
   status: string;
   message: string | null;
+  message_from_educator: string | null;
   created_at: string;
   updated_at: string;
   student: Student;
@@ -33,6 +37,10 @@ export function LessonRequests() {
   const [requests, setRequests] = useState<LessonRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isResponseDialogOpen, setIsResponseDialogOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [responseMessage, setResponseMessage] = useState('');
 
   useEffect(() => {
     if (!user) {
@@ -84,6 +92,7 @@ export function LessonRequests() {
         .from('lesson_requests')
         .update({ 
           status: newStatus,
+          message_from_educator: responseMessage.trim() || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', requestId);
@@ -92,15 +101,28 @@ export function LessonRequests() {
 
       setRequests(requests.map(request => 
         request.id === requestId 
-          ? { ...request, status: newStatus }
+          ? { ...request, status: newStatus, message_from_educator: responseMessage.trim() || null }
           : request
       ));
+
+      // Reset the form
+      setResponseMessage('');
+      setSelectedRequestId(null);
+      setPendingStatus(null);
+      setIsResponseDialogOpen(false);
 
       toast.success(`Request ${newStatus}`);
     } catch (error: any) {
       console.error('Error updating request:', error);
       toast.error('Failed to update request status');
     }
+  };
+
+  const openResponseDialog = (requestId: string, status: string) => {
+    setSelectedRequestId(requestId);
+    setPendingStatus(status);
+    setResponseMessage('');
+    setIsResponseDialogOpen(true);
   };
 
   if (loading) {
@@ -169,20 +191,31 @@ export function LessonRequests() {
                   {request.message && (
                     <div className="flex items-start gap-2 mt-2">
                       <MessageCircle className="w-4 h-4 mt-1" />
-                      <p className="text-sm">{request.message}</p>
+                      <p className="text-sm">
+                        <span className="font-medium">Student:</span> {request.message}
+                      </p>
+                    </div>
+                  )}
+
+                  {request.message_from_educator && (
+                    <div className="flex items-start gap-2 mt-2">
+                      <MessageCircle className="w-4 h-4 mt-1" />
+                      <p className="text-sm">
+                        <span className="font-medium">Your response:</span> {request.message_from_educator}
+                      </p>
                     </div>
                   )}
 
                   {request.status === 'pending' && (
                     <div className="flex gap-2 mt-4">
                       <Button
-                        onClick={() => handleStatusUpdate(request.id, 'accepted')}
+                        onClick={() => openResponseDialog(request.id, 'accepted')}
                         className="flex-1 bg-[#8BC34A] hover:bg-[#7CB342] text-white"
                       >
                         Accept
                       </Button>
                       <Button
-                        onClick={() => handleStatusUpdate(request.id, 'rejected')}
+                        onClick={() => openResponseDialog(request.id, 'rejected')}
                         variant="outline"
                         className="flex-1"
                       >
@@ -195,6 +228,44 @@ export function LessonRequests() {
             ))}
           </div>
         )}
+
+        {/* Response Dialog */}
+        <Dialog open={isResponseDialogOpen} onOpenChange={setIsResponseDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {pendingStatus === 'accepted' ? 'Accept' : 'Decline'} Lesson Request
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="message">Message to Student (Optional)</Label>
+                <Textarea
+                  id="message"
+                  placeholder={pendingStatus === 'accepted' 
+                    ? "Add details about the lesson or propose another time..." 
+                    : "Explain why you're declining or suggest an alternative..."}
+                  value={responseMessage}
+                  onChange={(e) => setResponseMessage(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsResponseDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => selectedRequestId && pendingStatus && handleStatusUpdate(selectedRequestId, pendingStatus)}
+                className={pendingStatus === 'accepted' 
+                  ? "bg-[#8BC34A] hover:bg-[#7CB342] text-white" 
+                  : ""}
+              >
+                {pendingStatus === 'accepted' ? 'Accept' : 'Decline'} Request
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

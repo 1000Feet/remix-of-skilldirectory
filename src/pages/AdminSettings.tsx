@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -14,6 +13,10 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
+import { FeaturedEducatorsManager } from '@/components/admin/FeaturedEducatorsManager';
+import { Separator } from '@/components/ui/separator';
+import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 
 interface User {
   id: string;
@@ -145,53 +148,67 @@ export default function AdminSettings() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Admin Settings</h1>
-      
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">User Management</h2>
+    <>
+      <Header />
+      <main className="min-h-screen bg-gray-50">
+        <div className="container mx-auto py-8">
+          <h1 className="text-3xl font-bold mb-6">Admin Settings</h1>
           
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.name || 'N/A'}</TableCell>
-                  <TableCell className="capitalize">{user.user_type}</TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {user.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-4">
-                      <Switch
-                        checked={user.is_active}
-                        onCheckedChange={() => toggleUserStatus(user.id, user.user_type, user.is_active)}
-                      />
-                      <span className="text-sm text-gray-500">
-                        {user.is_active ? 'Deactivate' : 'Activate'}
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="space-y-8">
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">User Management</h2>
+                
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.name || 'N/A'}</TableCell>
+                        <TableCell className="capitalize">{user.user_type}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {user.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-4">
+                            <Switch
+                              checked={user.is_active}
+                              onCheckedChange={() => toggleUserStatus(user.id, user.user_type, user.is_active)}
+                            />
+                            <span className="text-sm text-gray-500">
+                              {user.is_active ? 'Deactivate' : 'Activate'}
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6">
+                <FeaturedEducatorsManager />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </main>
+      <Footer />
+    </>
   );
 }

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MessageSquare, Video, Calendar } from "lucide-react";
 import { ChatModal } from "@/components/educator/ChatModal";
+import { Reviews } from '@/components/educator/Reviews';
 
 interface EducatorProfile {
   id: string;
@@ -162,6 +163,7 @@ const EducatorProfile = () => {
                 description={profile.description}
                 image={profile.image}
                 categories={profile.categories}
+                educatorId={profile.id}
               />
               
               <AboutSection
@@ -169,11 +171,23 @@ const EducatorProfile = () => {
                 description={profile.description}
               />
 
+              <div className="mt-8 space-y-8">
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-2xl font-semibold mb-4">About</h2>
+                  <p className="text-gray-700">{profile.description || 'No bio available.'}</p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-2xl font-semibold mb-4">Reviews</h2>
+                  <Reviews educatorId={profile.id} />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-[#F2FCE2] p-6 rounded-lg text-center">
                   <MessageSquare className="mx-auto mb-4 h-8 w-8 text-primary" />
                   <h3 className="font-semibold mb-2">Chat with AI Assistant</h3>
-                  <p className="text-sm text-gray-600 mb-4">Ask about our services to our AI Voice Agent!</p>
+                  <p className="text-sm text-gray-600 mb-4">Ask about our services to our AI Agent!</p>
                   <Button 
                     variant="outline" 
                     className="w-full"

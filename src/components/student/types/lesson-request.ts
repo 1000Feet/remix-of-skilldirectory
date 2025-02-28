@@ -1,4 +1,3 @@
-
 export interface Educator {
   id: string;
   name: string;
@@ -12,5 +11,6 @@ export interface LessonRequest {
   proposed_date: string;
   status: string;
   message: string | null;
+  message_from_educator: string | null;
   educator: Educator;
 }

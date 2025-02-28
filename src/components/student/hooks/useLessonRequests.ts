@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -21,7 +20,16 @@ export function useLessonRequests(userId: string | undefined) {
         const { data, error } = await supabase
           .from('lesson_requests')
           .select(`
-            *,
+            id,
+            educator_id,
+            educator_profile_id,
+            proposed_date,
+            proposed_time,
+            status,
+            message,
+            message_from_educator,
+            created_at,
+            updated_at,
             educator:educator_profiles!lesson_requests_educator_profile_id_fkey(
               id,
               name,
