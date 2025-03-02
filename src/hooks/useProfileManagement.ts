@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
 
 // Define the EducatorProfile type
 export interface EducatorProfile {
@@ -55,8 +54,8 @@ export interface StudentProfile {
 export const useProfileManagement = () => {
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const { user } = useAuth();
-
+  
+  // Get the user from function parameter instead of useAuth to avoid circular dependency
   const getEducatorProfile = async (userId: string) => {
     setLoading(true);
     try {
@@ -109,8 +108,8 @@ export const useProfileManagement = () => {
     }
   };
 
-  const updateEducatorProfile = async (profileData: Partial<EducatorProfile>) => {
-    if (!user) {
+  const updateEducatorProfile = async (userId: string, profileData: Partial<EducatorProfile>) => {
+    if (!userId) {
       toast.error('You must be signed in to update your profile');
       return null;
     }
@@ -123,7 +122,7 @@ export const useProfileManagement = () => {
       const { data, error } = await supabase
         .from('educator_profiles')
         .update(updatedData)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .select()
         .single();
 
@@ -152,8 +151,8 @@ export const useProfileManagement = () => {
     }
   };
 
-  const updateStudentProfile = async (profileData: Partial<StudentProfile>) => {
-    if (!user) {
+  const updateStudentProfile = async (userId: string, profileData: Partial<StudentProfile>) => {
+    if (!userId) {
       toast.error('You must be signed in to update your profile');
       return null;
     }
@@ -163,7 +162,7 @@ export const useProfileManagement = () => {
       const { data, error } = await supabase
         .from('student_profiles')
         .update(profileData)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .select()
         .single();
 

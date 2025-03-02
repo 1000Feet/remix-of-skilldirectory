@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Remove references to non-existent functions from useProfileManagement
+  // Get functions from useProfileManagement
   const { getEducatorProfile, getStudentProfile } = useProfileManagement();
 
   useEffect(() => {
@@ -148,7 +148,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Make sure the fetchUserProfile function is updated to use the correct methods
+  // Use dedicated function to fetch user profile to avoid circular dependency
   const fetchUserProfile = async (userId: string, userType: 'educator' | 'student'): Promise<any> => {
     if (userType === 'educator') {
       return await getEducatorProfile(userId);
