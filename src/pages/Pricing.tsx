@@ -113,28 +113,31 @@ const PricingPage = () => {
         }
         
         // Create the user directly since it's a free plan
-        const result = await signUp(email, password, 'educator');
+        const signupResult = await signUp(email, password, 'educator');
         
-        if (result.error) {
-          throw new Error(result.error.message);
+        if (signupResult && 'error' in signupResult && signupResult.error) {
+          throw new Error(signupResult.error.message);
         }
         
-        // Update educator profile with subscription info
-        await supabase
-          .from('educator_profiles')
-          .update({
-            subscription_tier: 'basic',
-            subscription_status: 'active',
-            subscription_renewed_at: new Date().toISOString()
-          })
-          .eq('user_id', result.data.user.id);
-        
-        // Clear stored credentials
-        sessionStorage.removeItem('pending_educator_email');
-        sessionStorage.removeItem('pending_educator_password');
-        
-        toast.success('Your free account has been created!');
-        navigate('/educator-dashboard');
+        // If signup was successful and we have user data
+        if (signupResult && 'data' in signupResult && signupResult.data?.user?.id) {
+          // Update educator profile with subscription info
+          await supabase
+            .from('educator_profiles')
+            .update({
+              subscription_tier: 'basic',
+              subscription_status: 'active',
+              subscription_renewed_at: new Date().toISOString()
+            })
+            .eq('user_id', signupResult.data.user.id);
+          
+          // Clear stored credentials
+          sessionStorage.removeItem('pending_educator_email');
+          sessionStorage.removeItem('pending_educator_password');
+          
+          toast.success('Your free account has been created!');
+          navigate('/educator-dashboard');
+        }
       } else if (user) {
         // For existing users, just navigate to dashboard
         navigate('/educator-dashboard');
@@ -144,7 +147,7 @@ const PricingPage = () => {
       }
     } catch (error) {
       console.error('Error signing up:', error);
-      toast.error(error.message || 'Failed to create account');
+      toast.error(error instanceof Error ? error.message : 'Failed to create account');
     } finally {
       setLoading(false);
     }

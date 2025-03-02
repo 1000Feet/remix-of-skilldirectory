@@ -51,19 +51,22 @@ export function StripeCheckout({
           const password = sessionStorage.getItem('pending_educator_password') || '';
           
           // First check if this email is already registered
-          const { data: existingData } = await supabase
-            .from('educator_signups')
+          // Use custom query for table that's not in the TypeScript definitions
+          const { data: existingData, error: checkError } = await supabase
+            .from('educator_signups' as any)
             .select('email')
             .eq('email', email)
-            .single();
+            .maybeSingle();
             
-          if (!existingData) {
-            // Store credentials in temporary table
-            await supabase.from('educator_signups').insert({
-              email,
-              password,
-              created_at: new Date().toISOString()
-            });
+          if (!existingData && !checkError) {
+            // Store credentials in temporary table - use generic insert for table not in types
+            await supabase
+              .from('educator_signups' as any)
+              .insert({
+                email,
+                password,
+                created_at: new Date().toISOString()
+              });
           }
         } catch (error) {
           console.error('Error storing pending signup:', error);
