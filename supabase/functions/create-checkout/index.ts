@@ -29,7 +29,9 @@ serve(async (req) => {
     );
 
     // Get the request body
-    const { priceId, successUrl, cancelUrl, userEmail, userType } = await req.json();
+    const { priceId, userEmail, userType, pendingSignup, successUrl, cancelUrl } = await req.json();
+
+    console.log(`Creating checkout session for ${userEmail}, pricing: ${priceId}, pending signup: ${pendingSignup}`);
 
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
@@ -52,9 +54,12 @@ serve(async (req) => {
       metadata: {
         user_email: userEmail,
         user_type: userType,
+        pending_signup: pendingSignup ? 'true' : 'false'
       },
     });
 
+    console.log(`Checkout session created: ${checkoutSession.id}`);
+    
     // Return the checkout URL
     return new Response(
       JSON.stringify({ url: checkoutSession.url }),
@@ -64,7 +69,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error creating checkout session:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {

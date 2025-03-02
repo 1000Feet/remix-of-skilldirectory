@@ -9,6 +9,7 @@ import { Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { StripeCheckout } from "@/components/stripe/StripeCheckout";
+import { supabase } from "@/integrations/supabase/client";
 
 // Updated with the actual Stripe price IDs
 const PRICE_IDS = {
@@ -69,7 +70,7 @@ const Feature = ({ text }: { text: string }) => (
 const PricingPage = () => {
   const { user, signUp } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState<'student' | 'educator' | null>(null);
   const [pendingSignup, setPendingSignup] = useState(false);
   
@@ -91,55 +92,70 @@ const PricingPage = () => {
   }, [user]);
 
   const handlePlanSelection = async (plan: typeof plans[0]) => {
-    // For the free plan with pending educator signup
-    if (plan.price === "FREE" && pendingSignup) {
-      const email = sessionStorage.getItem('pending_educator_email');
-      const password = sessionStorage.getItem('pending_educator_password');
-      
-      if (email && password) {
-        try {
-          await signUp(email, password, 'educator');
-          // Clear stored credentials after successful signup
-          sessionStorage.removeItem('pending_educator_email');
-          sessionStorage.removeItem('pending_educator_password');
-          toast.success('Account created successfully!');
-          navigate('/educator-dashboard');
-        } catch (error) {
-          console.error('Error signing up:', error);
-          toast.error('Failed to create account');
+    if (plan.price !== "FREE") {
+      // For paid plans, the StripeCheckout handles everything
+      return;
+    }
+    
+    // For the free plan
+    setLoading(true);
+    
+    try {
+      // For the free plan with pending educator signup
+      if (pendingSignup) {
+        const email = sessionStorage.getItem('pending_educator_email');
+        const password = sessionStorage.getItem('pending_educator_password');
+        
+        if (!email || !password) {
+          toast.error('Signup information is missing. Please try again.');
+          navigate('/auth?signup=educator');
+          return;
         }
+        
+        // Create the user directly since it's a free plan
+        const result = await signUp(email, password, 'educator');
+        
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+        
+        // Update educator profile with subscription info
+        await supabase
+          .from('educator_profiles')
+          .update({
+            subscription_tier: 'basic',
+            subscription_status: 'active',
+            subscription_renewed_at: new Date().toISOString()
+          })
+          .eq('user_id', result.data.user.id);
+        
+        // Clear stored credentials
+        sessionStorage.removeItem('pending_educator_email');
+        sessionStorage.removeItem('pending_educator_password');
+        
+        toast.success('Your free account has been created!');
+        navigate('/educator-dashboard');
+      } else if (user) {
+        // For existing users, just navigate to dashboard
+        navigate('/educator-dashboard');
+      } else {
+        // For users who aren't signed in, redirect to auth page
+        navigate('/auth?signup=educator');
       }
-      return;
+    } catch (error) {
+      console.error('Error signing up:', error);
+      toast.error(error.message || 'Failed to create account');
+    } finally {
+      setLoading(false);
     }
-    
-    // For the free plan with existing user
-    if (plan.price === "FREE" && user) {
-      navigate('/educator-dashboard');
-      return;
-    }
-    
-    // For the free plan without user, redirect to auth page
-    if (plan.price === "FREE" && !user) {
-      navigate('/auth?signup=educator');
-      return;
-    }
-    
-    // For paid plans, signup happens after successful payment in StripeCheckout
-    // No action needed here as StripeCheckout handles it
   };
 
   const handleCheckoutSuccess = () => {
     // After successful checkout
     if (pendingSignup) {
-      // Complete the signup process
-      const email = sessionStorage.getItem('pending_educator_email');
-      const password = sessionStorage.getItem('pending_educator_password');
-      
-      if (email && password) {
-        // Actual signup will be handled by webhook, just clear the credentials
-        sessionStorage.removeItem('pending_educator_email');
-        sessionStorage.removeItem('pending_educator_password');
-      }
+      // Clear the credentials (account creation is handled by webhook)
+      sessionStorage.removeItem('pending_educator_email');
+      sessionStorage.removeItem('pending_educator_password');
     }
     navigate('/educator-dashboard');
   };
@@ -181,8 +197,9 @@ const PricingPage = () => {
                       className="w-full text-lg py-6"
                       variant={plan.highlight ? "default" : "default"}
                       onClick={() => handlePlanSelection(plan)}
+                      disabled={loading}
                     >
-                      {pendingSignup ? "SIGN UP NOW" : (user ? "ACTIVATE" : "SIGN UP FREE")}
+                      {loading ? "PROCESSING..." : (pendingSignup ? "SIGN UP NOW" : (user ? "ACTIVATE" : "SIGN UP FREE"))}
                     </Button>
                   ) : (
                     <StripeCheckout

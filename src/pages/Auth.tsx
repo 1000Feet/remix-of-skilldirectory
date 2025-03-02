@@ -60,6 +60,18 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!email || !password) {
+      toast.error('Please enter both email and password');
+      return;
+    }
+    
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+    
     try {
       if (isLogin) {
         await signIn(email, password);

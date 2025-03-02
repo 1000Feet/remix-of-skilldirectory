@@ -44,6 +44,31 @@ export function StripeCheckout({
       if (hasPendingSignup) {
         userEmail = sessionStorage.getItem('pending_educator_email');
         pendingSignup = true;
+        
+        // Store pending credentials in Supabase first
+        try {
+          const email = sessionStorage.getItem('pending_educator_email') || '';
+          const password = sessionStorage.getItem('pending_educator_password') || '';
+          
+          // First check if this email is already registered
+          const { data: existingData } = await supabase
+            .from('educator_signups')
+            .select('email')
+            .eq('email', email)
+            .single();
+            
+          if (!existingData) {
+            // Store credentials in temporary table
+            await supabase.from('educator_signups').insert({
+              email,
+              password,
+              created_at: new Date().toISOString()
+            });
+          }
+        } catch (error) {
+          console.error('Error storing pending signup:', error);
+          // Continue anyway as this isn't critical
+        }
       } else if (user) {
         // If user is logged in, use their email
         userEmail = user.email;
@@ -54,6 +79,8 @@ export function StripeCheckout({
         window.location.href = '/auth?signup=educator';
         return;
       }
+      
+      console.log(`Creating checkout for ${userEmail}, price: ${priceId}, pending: ${pendingSignup}`);
       
       // Create checkout session
       const { data, error } = await supabase.functions.invoke('create-checkout', {
@@ -78,7 +105,7 @@ export function StripeCheckout({
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
-      toast.error('Failed to create checkout session');
+      toast.error('Failed to create checkout session. Please try again later or contact support.');
     } finally {
       setLoading(false);
     }
@@ -95,6 +122,10 @@ export function StripeCheckout({
       onSuccess?.();
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Clear any pending signup data from session storage
+      sessionStorage.removeItem('pending_educator_email');
+      sessionStorage.removeItem('pending_educator_password');
     } else if (checkoutCanceled === 'true') {
       toast.info('Checkout was canceled');
       // Clean up URL
