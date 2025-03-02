@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -11,13 +12,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { SubscriptionInfo } from '@/components/educator/SubscriptionInfo';
-import { useProfileManagement, EducatorProfile } from '@/hooks/useProfileManagement';
+import { useProfileManagement } from '@/hooks/useProfileManagement';
 
 const EducatorDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { getEducatorProfile, loading: profileLoading } = useProfileManagement();
-  const [educatorProfile, setEducatorProfile] = useState<EducatorProfile | null>(null);
+  const { getEducatorProfile, updateEducatorProfile, loading: profileLoading } = useProfileManagement();
+  const [educatorProfile, setEducatorProfile] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +51,7 @@ const EducatorDashboard = () => {
             profile.ai_voice_agent = { voice_id: '', knowledge_base: [] };
           }
           
-          setEducatorProfile(profile as EducatorProfile);
+          setEducatorProfile(profile);
         }
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -62,6 +63,42 @@ const EducatorDashboard = () => {
 
     loadProfile();
   }, [user, navigate, getEducatorProfile]);
+
+  const handleAIChatbotChange = async (value: string) => {
+    if (educatorProfile) {
+      try {
+        const updatedProfile = await updateEducatorProfile({
+          ...educatorProfile,
+          ai_chatbot: value
+        });
+        if (updatedProfile) {
+          setEducatorProfile(updatedProfile);
+          toast.success("AI Chatbot settings updated");
+        }
+      } catch (error) {
+        console.error("Error updating AI chatbot:", error);
+        toast.error("Failed to update AI Chatbot settings");
+      }
+    }
+  };
+
+  const handleVoiceAgentChange = async (value: any) => {
+    if (educatorProfile) {
+      try {
+        const updatedProfile = await updateEducatorProfile({
+          ...educatorProfile,
+          ai_voice_agent: value
+        });
+        if (updatedProfile) {
+          setEducatorProfile(updatedProfile);
+          toast.success("Voice agent settings updated");
+        }
+      } catch (error) {
+        console.error("Error updating voice agent:", error);
+        toast.error("Failed to update voice agent settings");
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -103,8 +140,14 @@ const EducatorDashboard = () => {
             </TabsContent>
 
             <TabsContent value="ai-tools" className="space-y-8">
-              <AIChatbotSection />
-              <VoiceAgentSection />
+              <AIChatbotSection 
+                chatbot={educatorProfile?.ai_chatbot || ''} 
+                onChange={handleAIChatbotChange} 
+              />
+              <VoiceAgentSection 
+                voiceAgent={educatorProfile?.ai_voice_agent} 
+                onChange={handleVoiceAgentChange}
+              />
             </TabsContent>
           </Tabs>
         )}
