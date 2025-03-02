@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -5,12 +6,15 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function Auth() {
   const location = useLocation();
+  const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
   const signupParam = queryParams.get('signup');
+  const fromPricing = queryParams.get('fromPricing');
   
   const [isLogin, setIsLogin] = useState(!signupParam);
   const [email, setEmail] = useState('');
@@ -19,6 +23,19 @@ export default function Auth() {
     signupParam === 'educator' ? 'educator' : 'student'
   );
   const { signIn, signUp, user } = useAuth();
+
+  // Redirect after successful educator signup to pricing page
+  useEffect(() => {
+    const redirectAfterSignup = async () => {
+      const shouldRedirect = sessionStorage.getItem('redirect_to_pricing');
+      if (shouldRedirect && user && user.user_metadata?.user_type === 'educator') {
+        sessionStorage.removeItem('redirect_to_pricing');
+        navigate('/pricing');
+      }
+    };
+    
+    redirectAfterSignup();
+  }, [user, navigate]);
 
   // Redirect if user is already logged in
   if (user) {
@@ -31,7 +48,13 @@ export default function Auth() {
       if (isLogin) {
         await signIn(email, password);
       } else {
+        // For educator signups, we'll want to redirect to pricing
+        if (userType === 'educator') {
+          sessionStorage.setItem('redirect_to_pricing', 'true');
+        }
         await signUp(email, password, userType);
+        // Show toast to let user know signup was successful
+        toast.success(`Account created successfully${userType === 'educator' ? '. Now choose a subscription plan.' : '.'}`);
       }
     } catch (error) {
       console.error('Authentication error:', error);
@@ -94,6 +117,11 @@ export default function Auth() {
                   <Label htmlFor="educator">Educator</Label>
                 </div>
               </RadioGroup>
+              {userType === 'educator' && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Educator accounts require a subscription plan. You'll be redirected to choose a plan after signup.
+                </p>
+              )}
             </div>
           )}
 

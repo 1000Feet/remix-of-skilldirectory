@@ -1,8 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { EducatorProfileForm } from "@/components/educator/EducatorProfileForm";
 import { LessonRequests } from "@/components/educator/LessonRequests";
+import { SubscriptionInfo } from "@/components/educator/SubscriptionInfo";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { EducatorProfile } from "@/components/educator/types";
@@ -44,6 +46,19 @@ export default function EducatorDashboard() {
         if (error) {
           console.error('Error fetching educator profile:', error);
           return;
+        }
+
+        // Handle ai_voice_agent field that could be a string from JSON
+        if (data && typeof data.ai_voice_agent === 'string') {
+          try {
+            data.ai_voice_agent = JSON.parse(data.ai_voice_agent);
+          } catch (e) {
+            // If parsing fails, set a default value
+            data.ai_voice_agent = { 
+              knowledge_base: [],
+              voice_id: 'cjVigY5qzO86Huf0OWal'
+            };
+          }
         }
 
         setProfileData(data);
@@ -99,6 +114,7 @@ export default function EducatorDashboard() {
             />
           </div>
           <div className="space-y-6">
+            <SubscriptionInfo />
             <LessonRequests />
           </div>
         </div>

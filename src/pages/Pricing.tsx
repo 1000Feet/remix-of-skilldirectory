@@ -1,14 +1,27 @@
 
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Check } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { StripeCheckout } from "@/components/stripe/StripeCheckout";
+
+// Replace these with your actual Stripe price IDs
+const PRICE_IDS = {
+  BASIC: "price_BASIC", // Update with your actual Stripe price ID
+  STANDARD: "price_STANDARD", // Update with your actual Stripe price ID
+  PREMIUM: "price_PREMIUM", // Update with your actual Stripe price ID
+};
 
 const plans = [
   {
     name: "Basic: Get Listed",
     price: "FREE",
+    priceId: PRICE_IDS.BASIC,
     features: [
       "Profile Picture",
       "Business Name",
@@ -21,6 +34,7 @@ const plans = [
   {
     name: "Standard: Get Seen",
     price: "$30",
+    priceId: PRICE_IDS.STANDARD,
     features: [
       "Includes everything in basic subscription",
       "Links to Social Media",
@@ -33,6 +47,7 @@ const plans = [
   {
     name: "Premium: Get Results",
     price: "$50",
+    priceId: PRICE_IDS.PREMIUM,
     features: [
       "Includes everything in standard subscription",
       "Lesson Booking Module",
@@ -52,6 +67,40 @@ const Feature = ({ text }: { text: string }) => (
 );
 
 const PricingPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [userType, setUserType] = useState<'student' | 'educator' | null>(null);
+
+  useEffect(() => {
+    // Get user type from metadata
+    if (user) {
+      setUserType(user.user_metadata?.user_type || null);
+    }
+    setLoading(false);
+  }, [user]);
+
+  const handleSignUp = (plan: typeof plans[0]) => {
+    if (!user) {
+      // If not signed in, redirect to sign up page with educator type
+      navigate('/auth?signup=educator');
+      return;
+    }
+
+    if (userType === 'student') {
+      toast.error('You need to create an educator account to subscribe to a plan');
+      return;
+    }
+
+    // For the free plan, just redirect to dashboard
+    if (plan.price === "FREE") {
+      navigate('/educator-dashboard');
+      return;
+    }
+
+    // For paid plans, checkout is handled by the StripeCheckout component
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -84,12 +133,23 @@ const PricingPage = () => {
                   ))}
                 </div>
                 <div className="p-6 mt-auto">
-                  <Button
-                    className="w-full text-lg py-6"
-                    variant={plan.highlight ? "default" : "default"}
-                  >
-                    SIGN UP
-                  </Button>
+                  {plan.price === "FREE" ? (
+                    <Button
+                      className="w-full text-lg py-6"
+                      variant={plan.highlight ? "default" : "default"}
+                      onClick={() => handleSignUp(plan)}
+                    >
+                      SIGN UP FREE
+                    </Button>
+                  ) : (
+                    <StripeCheckout
+                      priceId={plan.priceId}
+                      buttonText={user ? "SUBSCRIBE" : "SIGN UP"}
+                      className="w-full text-lg py-6"
+                      userType="educator"
+                      onSuccess={() => navigate('/educator-dashboard')}
+                    />
+                  )}
                 </div>
               </Card>
             ))}
