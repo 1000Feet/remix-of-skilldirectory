@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -66,38 +67,81 @@ const Feature = ({ text }: { text: string }) => (
 );
 
 const PricingPage = () => {
-  const { user } = useAuth();
+  const { user, signUp } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userType, setUserType] = useState<'student' | 'educator' | null>(null);
-
+  const [pendingSignup, setPendingSignup] = useState(false);
+  
   useEffect(() => {
+    // Check for pending signup from session storage
+    const email = sessionStorage.getItem('pending_educator_email');
+    const password = sessionStorage.getItem('pending_educator_password');
+    
+    if (email && password) {
+      setPendingSignup(true);
+    }
+    
     // Get user type from metadata
     if (user) {
       setUserType(user.user_metadata?.user_type || null);
     }
+    
     setLoading(false);
   }, [user]);
 
-  const handleSignUp = (plan: typeof plans[0]) => {
-    if (!user) {
-      // If not signed in, redirect to sign up page with educator type
-      navigate('/auth?signup=educator');
+  const handlePlanSelection = async (plan: typeof plans[0]) => {
+    // For the free plan with pending educator signup
+    if (plan.price === "FREE" && pendingSignup) {
+      const email = sessionStorage.getItem('pending_educator_email');
+      const password = sessionStorage.getItem('pending_educator_password');
+      
+      if (email && password) {
+        try {
+          await signUp(email, password, 'educator');
+          // Clear stored credentials after successful signup
+          sessionStorage.removeItem('pending_educator_email');
+          sessionStorage.removeItem('pending_educator_password');
+          toast.success('Account created successfully!');
+          navigate('/educator-dashboard');
+        } catch (error) {
+          console.error('Error signing up:', error);
+          toast.error('Failed to create account');
+        }
+      }
       return;
     }
-
-    if (userType === 'student') {
-      toast.error('You need to create an educator account to subscribe to a plan');
-      return;
-    }
-
-    // For the free plan, just redirect to dashboard
-    if (plan.price === "FREE") {
+    
+    // For the free plan with existing user
+    if (plan.price === "FREE" && user) {
       navigate('/educator-dashboard');
       return;
     }
+    
+    // For the free plan without user, redirect to auth page
+    if (plan.price === "FREE" && !user) {
+      navigate('/auth?signup=educator');
+      return;
+    }
+    
+    // For paid plans, signup happens after successful payment in StripeCheckout
+    // No action needed here as StripeCheckout handles it
+  };
 
-    // For paid plans, checkout is handled by the StripeCheckout component
+  const handleCheckoutSuccess = () => {
+    // After successful checkout
+    if (pendingSignup) {
+      // Complete the signup process
+      const email = sessionStorage.getItem('pending_educator_email');
+      const password = sessionStorage.getItem('pending_educator_password');
+      
+      if (email && password) {
+        // Actual signup will be handled by webhook, just clear the credentials
+        sessionStorage.removeItem('pending_educator_email');
+        sessionStorage.removeItem('pending_educator_password');
+      }
+    }
+    navigate('/educator-dashboard');
   };
 
   return (
@@ -136,17 +180,17 @@ const PricingPage = () => {
                     <Button
                       className="w-full text-lg py-6"
                       variant={plan.highlight ? "default" : "default"}
-                      onClick={() => handleSignUp(plan)}
+                      onClick={() => handlePlanSelection(plan)}
                     >
-                      SIGN UP FREE
+                      {pendingSignup ? "SIGN UP NOW" : (user ? "ACTIVATE" : "SIGN UP FREE")}
                     </Button>
                   ) : (
                     <StripeCheckout
                       priceId={plan.priceId}
-                      buttonText={user ? "SUBSCRIBE" : "SIGN UP"}
+                      buttonText={pendingSignup ? "SIGN UP & SUBSCRIBE" : (user ? "SUBSCRIBE" : "SIGN UP & SUBSCRIBE")}
                       className="w-full text-lg py-6"
                       userType="educator"
-                      onSuccess={() => navigate('/educator-dashboard')}
+                      onSuccess={handleCheckoutSuccess}
                     />
                   )}
                 </div>
@@ -159,6 +203,6 @@ const PricingPage = () => {
       <Footer />
     </div>
   );
-};
+}
 
 export default PricingPage;

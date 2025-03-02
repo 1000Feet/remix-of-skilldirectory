@@ -23,22 +23,45 @@ export function StripeCheckout({
   onSuccess
 }: StripeCheckoutProps) {
   const [loading, setLoading] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signUp } = useAuth();
+  const [hasPendingSignup, setHasPendingSignup] = useState(false);
+
+  useEffect(() => {
+    // Check if there's a pending signup
+    const email = sessionStorage.getItem('pending_educator_email');
+    const password = sessionStorage.getItem('pending_educator_password');
+    setHasPendingSignup(!!email && !!password);
+  }, []);
 
   const handleCheckout = async () => {
     try {
       setLoading(true);
       
-      if (!user) {
+      let userEmail;
+      let pendingSignup = false;
+      
+      // If there's a pending signup, use the stored email
+      if (hasPendingSignup) {
+        userEmail = sessionStorage.getItem('pending_educator_email');
+        pendingSignup = true;
+      } else if (user) {
+        // If user is logged in, use their email
+        userEmail = user.email;
+      } else {
+        // No pending signup, no user - redirect to auth page
         toast.error('Please sign in to continue');
+        sessionStorage.setItem('redirect_after_auth', 'pricing');
+        window.location.href = '/auth?signup=educator';
         return;
       }
       
+      // Create checkout session
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
           priceId,
-          userEmail: user.email,
+          userEmail,
           userType,
+          pendingSignup,
           successUrl: `${window.location.origin}/educator-dashboard?checkout_success=true`,
           cancelUrl: `${window.location.origin}/pricing?checkout_canceled=true`,
         },

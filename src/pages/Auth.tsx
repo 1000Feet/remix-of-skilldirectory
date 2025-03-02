@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -23,13 +24,29 @@ export default function Auth() {
   );
   const { signIn, signUp, user } = useAuth();
 
-  // Redirect after successful educator signup to pricing page
+  // Check if we're coming from the pricing page (for direct signup flow)
+  useEffect(() => {
+    if (fromPricing && !isLogin) {
+      setUserType('educator');
+    }
+  }, [fromPricing, isLogin]);
+
+  // Redirect after successful student signup to home
+  // Educator signups go directly to pricing page
   useEffect(() => {
     const redirectAfterSignup = async () => {
-      const shouldRedirect = sessionStorage.getItem('redirect_to_pricing');
-      if (shouldRedirect && user && user.user_metadata?.user_type === 'educator') {
-        sessionStorage.removeItem('redirect_to_pricing');
-        navigate('/pricing');
+      if (user) {
+        if (user.user_metadata?.user_type === 'educator') {
+          // Only redirect educators to pricing if they're not coming from pricing already
+          if (!window.location.pathname.includes('/pricing')) {
+            navigate('/pricing');
+          } else {
+            navigate('/');
+          }
+        } else {
+          // Students go to home
+          navigate('/');
+        }
       }
     };
     
@@ -46,17 +63,23 @@ export default function Auth() {
     try {
       if (isLogin) {
         await signIn(email, password);
+        toast.success('Signed in successfully');
       } else {
-        // For educator signups, we'll want to redirect to pricing
         if (userType === 'educator') {
-          sessionStorage.setItem('redirect_to_pricing', 'true');
+          // For educators, first store credentials in session storage
+          // and redirect to pricing. Actual signup happens after payment
+          sessionStorage.setItem('pending_educator_email', email);
+          sessionStorage.setItem('pending_educator_password', password);
+          navigate('/pricing?signup=educator');
+        } else {
+          // For students, regular signup flow
+          await signUp(email, password, userType);
+          toast.success('Account created successfully');
         }
-        await signUp(email, password, userType);
-        // Show toast to let user know signup was successful
-        toast.success(`Account created successfully${userType === 'educator' ? '. Now choose a subscription plan.' : '.'}`);
       }
     } catch (error) {
       console.error('Authentication error:', error);
+      toast.error(error.message || 'Authentication failed');
     }
   };
 
@@ -118,14 +141,14 @@ export default function Auth() {
               </RadioGroup>
               {userType === 'educator' && (
                 <p className="text-sm text-muted-foreground mt-2">
-                  Educator accounts require a subscription plan. You'll be redirected to choose a plan after signup.
+                  Educator accounts require a subscription plan. You'll be redirected to choose a plan after providing your information.
                 </p>
               )}
             </div>
           )}
 
           <Button type="submit" className="w-full">
-            {isLogin ? 'Sign In' : 'Sign Up'}
+            {isLogin ? 'Sign In' : (userType === 'educator' ? 'Continue to Plans' : 'Sign Up')}
           </Button>
         </form>
 

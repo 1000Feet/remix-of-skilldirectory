@@ -28,21 +28,7 @@ serve(async (req) => {
       }
     );
 
-    // Get the current user session
-    const {
-      data: { session },
-    } = await supabaseClient.auth.getSession();
-
-    if (!session) {
-      return new Response(
-        JSON.stringify({ error: "Not authorized" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 401,
-        }
-      );
-    }
-
+    // Get the request body
     const { priceId, successUrl, cancelUrl, userEmail, userType } = await req.json();
 
     // Initialize Stripe
@@ -51,7 +37,7 @@ serve(async (req) => {
     });
 
     // Create a checkout session
-    const session = await stripe.checkout.sessions.create({
+    const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
         {
@@ -64,14 +50,14 @@ serve(async (req) => {
       cancel_url: cancelUrl,
       customer_email: userEmail,
       metadata: {
-        user_id: session.user.id,
+        user_email: userEmail,
         user_type: userType,
       },
     });
 
     // Return the checkout URL
     return new Response(
-      JSON.stringify({ url: session.url }),
+      JSON.stringify({ url: checkoutSession.url }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
