@@ -65,9 +65,9 @@ const EducatorDashboard = () => {
   }, [user, navigate, getEducatorProfile]);
 
   const handleAIChatbotChange = async (value: string) => {
-    if (educatorProfile) {
+    if (educatorProfile && user) {
       try {
-        const updatedProfile = await updateEducatorProfile({
+        const updatedProfile = await updateEducatorProfile(user.id, {
           ...educatorProfile,
           ai_chatbot: value
         });
@@ -83,9 +83,9 @@ const EducatorDashboard = () => {
   };
 
   const handleVoiceAgentChange = async (value: any) => {
-    if (educatorProfile) {
+    if (educatorProfile && user) {
       try {
-        const updatedProfile = await updateEducatorProfile({
+        const updatedProfile = await updateEducatorProfile(user.id, {
           ...educatorProfile,
           ai_voice_agent: value
         });
