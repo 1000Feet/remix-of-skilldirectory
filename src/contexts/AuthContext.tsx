@@ -1,14 +1,18 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { Auth, SupabaseClient, useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
-import { useRouter } from 'next/router';
+import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useProfileManagement } from '@/hooks/useProfileManagement';
+import { toast } from 'sonner';
 
 interface AuthContextType {
-  supabaseClient: SupabaseClient | null;
+  supabaseClient: any;
   session: any;
   user: any;
   isLoading: boolean;
   signOut: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, userType: 'educator' | 'student') => Promise<void>;
   userType: 'educator' | 'student' | null;
   setUserType: (type: 'educator' | 'student') => void;
   profile: any;
@@ -23,7 +27,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [userType, setUserType] = useState<'educator' | 'student' | null>(null);
   const [profile, setProfile] = useState<any>(null);
-  const router = useRouter();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Remove references to non-existent functions from useProfileManagement
   const { getEducatorProfile, getStudentProfile } = useProfileManagement();
@@ -35,7 +40,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (session) {
           setUser(session.user);
           // Determine user type based on the URL
-          const path = router.pathname;
+          const path = location.pathname;
           const type = path.startsWith('/educator') ? 'educator' : 'student';
           setUserType(type);
 
@@ -54,13 +59,64 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     fetchSession();
-  }, [session, router.pathname]);
+  }, [session, location.pathname]);
 
   const signOut = async () => {
     await supabaseClient.auth.signOut();
     setUser(null);
     setProfile(null);
-    router.push('/');
+    navigate('/');
+  };
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+      
+      setUser(data.user);
+      navigate('/');
+    } catch (error: any) {
+      console.error("Sign in error:", error);
+      throw error;
+    }
+  };
+
+  const signUp = async (email: string, password: string, userType: 'educator' | 'student') => {
+    try {
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            user_type: userType,
+          },
+        },
+      });
+      
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+      
+      setUser(data.user);
+      setUserType(userType);
+      
+      if (userType === 'educator') {
+        navigate('/pricing');
+      } else {
+        navigate('/');
+      }
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      throw error;
+    }
   };
 
   // Make sure the fetchUserProfile function is updated to use the correct methods
@@ -78,6 +134,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     isLoading,
     signOut,
+    signIn,
+    signUp,
     userType,
     setUserType,
     profile,
