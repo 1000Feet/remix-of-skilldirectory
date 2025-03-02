@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -10,11 +9,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { StripeCheckout } from "@/components/stripe/StripeCheckout";
 
-// Replace these with your actual Stripe price IDs
+// Updated with the actual Stripe price IDs
 const PRICE_IDS = {
-  BASIC: "price_BASIC", // Update with your actual Stripe price ID
-  STANDARD: "price_STANDARD", // Update with your actual Stripe price ID
-  PREMIUM: "price_PREMIUM", // Update with your actual Stripe price ID
+  BASIC: "price_1Qxp1X2ef3wsxdNewIs5Ewzl", // Get Listed
+  STANDARD: "price_1Qxp262ef3wsxdNeH5ShSDTi", // Get Seen
+  PREMIUM: "price_1Qxp2c2ef3wsxdNeQ62MW8h8", // Get Results
 };
 
 const plans = [

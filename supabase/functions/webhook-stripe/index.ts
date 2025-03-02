@@ -59,10 +59,9 @@ serve(async (req) => {
           let plan = "basic";
           
           // Map price IDs to subscription tiers
-          // Note: Update these with your actual price IDs
-          if (priceId === "price_STANDARD") {
+          if (priceId === "price_1Qxp262ef3wsxdNeH5ShSDTi") {
             plan = "standard";
-          } else if (priceId === "price_PREMIUM") {
+          } else if (priceId === "price_1Qxp2c2ef3wsxdNeQ62MW8h8") {
             plan = "premium";
           }
           
@@ -104,9 +103,9 @@ serve(async (req) => {
         let plan = "basic";
         
         // Map price IDs to subscription tiers
-        if (priceId === "price_STANDARD") {
+        if (priceId === "price_1Qxp262ef3wsxdNeH5ShSDTi") {
           plan = "standard";
-        } else if (priceId === "price_PREMIUM") {
+        } else if (priceId === "price_1Qxp2c2ef3wsxdNeQ62MW8h8") {
           plan = "premium";
         }
         

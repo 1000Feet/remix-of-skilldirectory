@@ -1,124 +1,118 @@
+import { useState, useEffect } from 'react';
+import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EducatorProfileForm } from '@/components/educator/EducatorProfileForm';
+import { LessonRequests } from '@/components/educator/LessonRequests';
+import { AIChatbotSection } from '@/components/educator/AIChatbotSection';
+import { VoiceAgentSection } from '@/components/educator/VoiceAgentSection';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import { SubscriptionInfo } from '@/components/educator/SubscriptionInfo';
+import { useProfileManagement, EducatorProfile } from '@/hooks/useProfileManagement';
 
-import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Header } from "@/components/Header";
-import { EducatorProfileForm } from "@/components/educator/EducatorProfileForm";
-import { LessonRequests } from "@/components/educator/LessonRequests";
-import { SubscriptionInfo } from "@/components/educator/SubscriptionInfo";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import type { EducatorProfile } from "@/components/educator/types";
-import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
-
-const createSlug = (name: string) => {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-};
-
-export default function EducatorDashboard() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [profileData, setProfileData] = useState<EducatorProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+const EducatorDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { getEducatorProfile, loading: profileLoading } = useProfileManagement();
+  const [educatorProfile, setEducatorProfile] = useState<EducatorProfile | null>(null);
+  const [activeTab, setActiveTab] = useState('profile');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-    if (user?.user_metadata?.user_type !== 'educator') {
-      navigate('/');
-      return;
-    }
+    const checkAuth = () => {
+      if (!user) {
+        toast.error('You must be signed in to access this page');
+        navigate('/auth?signin=educator');
+        return false;
+      }
+      return true;
+    };
 
-    const fetchEducatorProfile = async () => {
+    const loadProfile = async () => {
+      if (!checkAuth()) return;
+
       try {
-        const { data, error } = await supabase
-          .from('educator_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching educator profile:', error);
-          return;
-        }
-
-        // Handle ai_voice_agent field that could be a string from JSON
-        if (data && typeof data.ai_voice_agent === 'string') {
-          try {
-            data.ai_voice_agent = JSON.parse(data.ai_voice_agent);
-          } catch (e) {
-            // If parsing fails, set a default value
-            data.ai_voice_agent = { 
-              knowledge_base: [],
-              voice_id: 'cjVigY5qzO86Huf0OWal'
-            };
+        setLoading(true);
+        const profile = await getEducatorProfile(user.id);
+        
+        if (profile) {
+          // Ensure ai_voice_agent has the correct structure
+          if (typeof profile.ai_voice_agent === 'string') {
+            try {
+              profile.ai_voice_agent = JSON.parse(profile.ai_voice_agent);
+            } catch (e) {
+              profile.ai_voice_agent = { voice_id: '', knowledge_base: [] };
+            }
+          } else if (!profile.ai_voice_agent) {
+            profile.ai_voice_agent = { voice_id: '', knowledge_base: [] };
           }
+          
+          setEducatorProfile(profile as EducatorProfile);
         }
-
-        setProfileData(data);
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error loading profile:', error);
+        toast.error('Failed to load profile data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchEducatorProfile();
-  }, [user, navigate]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  const handleProfileUpdate = (updatedProfile: EducatorProfile) => {
-    setProfileData(updatedProfile);
-  };
-
-  const profileSlug = profileData?.name ? createSlug(profileData.name) : user.id;
+    loadProfile();
+  }, [user, navigate, getEducatorProfile]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="container mx-auto py-6 px-4 space-y-8">
-        <div className="flex justify-end">
-          <Link 
-            to={`/educator/${profileSlug}`} 
-            target="_blank"
-            className="inline-flex"
-          >
-            <Button variant="outline" className="gap-2">
-              <ExternalLink className="h-4 w-4" />
-              View Public Profile
-            </Button>
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <EducatorProfileForm 
-              initialData={profileData} 
-              onSuccess={handleProfileUpdate}
-            />
+      
+      <main className="flex-1 container mx-auto px-4 py-8">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <p className="text-lg">Loading your dashboard...</p>
           </div>
-          <div className="space-y-6">
-            <SubscriptionInfo />
-            <LessonRequests />
-          </div>
-        </div>
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-3xl font-bold">Educator Dashboard</h1>
+              <TabsList>
+                <TabsTrigger value="profile">Profile</TabsTrigger>
+                <TabsTrigger value="subscription">Subscription</TabsTrigger>
+                <TabsTrigger value="lessons">Lesson Requests</TabsTrigger>
+                <TabsTrigger value="ai-tools">AI Tools</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="profile" className="space-y-6">
+              <EducatorProfileForm initialData={educatorProfile} />
+            </TabsContent>
+
+            <TabsContent value="subscription" className="space-y-6">
+              <SubscriptionInfo />
+              
+              <div className="mt-6">
+                <Button onClick={() => navigate('/pricing')} variant="outline">
+                  View Pricing Plans
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="lessons" className="space-y-6">
+              <LessonRequests />
+            </TabsContent>
+
+            <TabsContent value="ai-tools" className="space-y-8">
+              <AIChatbotSection />
+              <VoiceAgentSection />
+            </TabsContent>
+          </Tabs>
+        )}
       </main>
+
+      <Footer />
     </div>
   );
-}
+};
+
+export default EducatorDashboard;
