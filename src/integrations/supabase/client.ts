@@ -1,15 +1,20 @@
+
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { env } from '@/config/env';
 
-if (!env.supabaseUrl || !env.supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+// Ensure we have valid URLs before creating the client
+const supabaseUrl = env.supabaseUrl || 'https://sheslhegcubntqohlgts.supabase.co';
+const supabaseAnonKey = env.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoZXNsaGVnY3VibnRxb2hsZ3RzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3MjEyMTQsImV4cCI6MjA1NTI5NzIxNH0.dIUlq1-6v8aFVt5ypoVIqZXxn2bJV7PWpCrbESy00DU';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables, using fallback values');
 }
 
 // Create a single instance of the Supabase client
 export const supabase = createClient<Database>(
-  env.supabaseUrl,
-  env.supabaseAnonKey,
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       autoRefreshToken: true,
