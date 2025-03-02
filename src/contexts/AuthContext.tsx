@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProfileManagement } from '@/hooks/useProfileManagement';
@@ -38,6 +39,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const { getEducatorProfile, getStudentProfile } = useProfileManagement();
 
+  // Check if we're waiting for a redirect after successful payment
+  const checkPendingRedirect = () => {
+    const awaitingPayment = sessionStorage.getItem('awaiting_payment_completion');
+    if (awaitingPayment === 'true') {
+      // We need to direct user to educator dashboard
+      navigate('/educator-dashboard?checkout_success=true');
+      sessionStorage.removeItem('awaiting_payment_completion');
+    }
+  };
+
   useEffect(() => {
     const fetchSession = async () => {
       setIsLoading(true);
@@ -52,6 +63,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUserType(type);
           const userProfile = await fetchUserProfile(currentSession.user.id, type);
           setProfile(userProfile);
+          
+          // Check if we need to redirect after login
+          const redirectAfterAuth = sessionStorage.getItem('redirect_after_auth');
+          if (redirectAfterAuth) {
+            navigate(`/${redirectAfterAuth}`);
+            sessionStorage.removeItem('redirect_after_auth');
+          }
+          
+          // Check if we were waiting for payment completion
+          checkPendingRedirect();
         } else {
           setUser(null);
           setProfile(null);
@@ -67,6 +88,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log("Auth state changed:", event);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
@@ -76,6 +98,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUserType(type);
           const userProfile = await fetchUserProfile(currentSession.user.id, type);
           setProfile(userProfile);
+          
+          // Check if we need to redirect after login
+          const redirectAfterAuth = sessionStorage.getItem('redirect_after_auth');
+          if (redirectAfterAuth) {
+            navigate(`/${redirectAfterAuth}`);
+            sessionStorage.removeItem('redirect_after_auth');
+          }
+          
+          // Check if we were waiting for payment completion
+          checkPendingRedirect();
         } else {
           setProfile(null);
         }
@@ -109,7 +141,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       setUser(data.user);
-      navigate('/');
+      
+      // Check for redirects after login
+      const redirectAfterAuth = sessionStorage.getItem('redirect_after_auth');
+      if (redirectAfterAuth) {
+        navigate(`/${redirectAfterAuth}`);
+        sessionStorage.removeItem('redirect_after_auth');
+      } else {
+        navigate('/');
+      }
+      
+      // Check if we were waiting for payment completion
+      checkPendingRedirect();
     } catch (error: any) {
       console.error("Sign in error:", error);
       throw error;

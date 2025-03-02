@@ -1,193 +1,212 @@
 
-import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from 'https://esm.sh/stripe@12.16.0';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.31.0'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+console.log('Webhook handler initialized')
 
 serve(async (req) => {
-  // Handle CORS preflight request
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: corsHeaders,
-      status: 200,
-    });
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2023-10-16",
-    });
-
-    // Get the signature from the header
-    const signature = req.headers.get("stripe-signature");
+    // Extract the Stripe signature and body
+    const signature = req.headers.get('stripe-signature')
     
     if (!signature) {
-      console.error("No stripe signature provided");
-      return new Response(
-        JSON.stringify({ error: "No signature provided" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
-      );
+      console.error('No stripe signature found')
+      return new Response(JSON.stringify({ error: 'No stripe signature found' }), 
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
-
-    // Get the request body
-    const body = await req.text();
     
-    // Verify the event
-    let event;
-    try {
-      event = stripe.webhooks.constructEvent(
-        body,
-        signature,
-        Deno.env.get("STRIPE_WEBHOOK_SECRET") || ""
-      );
-    } catch (err) {
-      console.error(`Webhook signature verification failed: ${err.message}`);
-      return new Response(
-        JSON.stringify({ error: `Webhook Error: ${err.message}` }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        }
-      );
-    }
-
-    // Initialize Supabase admin client
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") || "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
-    );
-
-    // Handle the event
-    switch (event.type) {
-      case 'checkout.session.completed':
-        const session = event.data.object;
-        const pendingSignup = session.metadata?.pending_signup === 'true';
-        const userEmail = session.metadata?.user_email;
-        const userType = session.metadata?.user_type;
-        
-        console.log(`Checkout completed for ${userEmail}, type: ${userType}, pending signup: ${pendingSignup}`);
-        
-        // If this was a new signup, create the user account
-        if (pendingSignup && userEmail) {
-          // Get temporary credentials stored in educator_signups table
-          const { data: signupData, error: signupError } = await supabaseAdmin
-            .from('educator_signups')
-            .select('email, password')
-            .eq('email', userEmail)
-            .single();
-          
-          if (signupError || !signupData) {
-            console.error(`Failed to get signup info for ${userEmail}:`, signupError);
-            return new Response(
-              JSON.stringify({ error: `Failed to get signup info: ${signupError?.message}` }),
-              {
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-                status: 400,
-              }
-            );
-          }
-          
-          // Create the user in Supabase Auth
-          const { data: authData, error: authError } = await supabaseAdmin.auth
-            .admin.createUser({
-              email: userEmail,
-              password: signupData.password,
-              email_confirm: true,
-              user_metadata: { user_type: userType }
-            });
-          
-          if (authError) {
-            console.error(`Failed to create user ${userEmail}:`, authError);
-            return new Response(
-              JSON.stringify({ error: `Failed to create user: ${authError.message}` }),
-              {
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-                status: 400,
-              }
-            );
-          }
-          
-          // User created successfully, now create their educator profile
-          const userId = authData.user.id;
-          const subscription = {
-            tier: getPlanTier(session.metadata?.price_id),
-            status: 'active'
-          };
-          
-          // Create educator profile
-          const { error: profileError } = await supabaseAdmin
-            .from('educator_profiles')
-            .insert({
-              user_id: userId,
-              email: userEmail,
-              is_active: true,
-              subscription_tier: subscription.tier,
-              subscription_status: subscription.status,
-              subscription_renewed_at: new Date().toISOString()
-            });
-          
-          if (profileError) {
-            console.error(`Failed to create educator profile for ${userEmail}:`, profileError);
-            return new Response(
-              JSON.stringify({ error: `Failed to create educator profile: ${profileError.message}` }),
-              {
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-                status: 400,
-              }
-            );
-          }
-          
-          // Delete temporary credentials from educator_signups table
-          await supabaseAdmin
-            .from('educator_signups')
-            .delete()
-            .eq('email', userEmail);
-            
-          console.log(`Successfully created account for ${userEmail} with ID ${userId}`);
-        }
-        break;
+    const body = await req.text()
+    console.log(`Received webhook with signature ${signature.substring(0, 20)}...`)
+    
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    const supabase = createClient(supabaseUrl, supabaseKey)
+    
+    // Parse Stripe event
+    const stripeEvent = JSON.parse(body)
+    console.log(`Processing ${stripeEvent.type} event`)
+    
+    if (stripeEvent.type === 'checkout.session.completed') {
+      const session = stripeEvent.data.object
+      console.log(`Checkout complete for session ${session.id}`)
       
-      // Handle other events as needed
-      default:
-        console.log(`Unhandled event type ${event.type}`);
-    }
-
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
-  } catch (error) {
-    console.error("Error handling webhook:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
+      // Extract custom metadata from the session
+      const { metadata } = session
+      
+      if (!metadata) {
+        console.error('No metadata found in session')
+        return new Response(JSON.stringify({ error: 'No metadata found in session' }), 
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
-    );
+      
+      const { userEmail, pendingSignup, planId, userType } = metadata
+      console.log(`Session metadata: email=${userEmail}, pendingSignup=${pendingSignup}, planId=${planId}, userType=${userType}`)
+      
+      // First handle pending signups if needed (create the user)
+      if (pendingSignup === 'true') {
+        console.log(`Processing pending signup for ${userEmail}`)
+        
+        // Fetch signup details
+        const { data: signupData, error: signupError } = await supabase
+          .from('educator_signups')
+          .select('email, password')
+          .eq('email', userEmail)
+          .single()
+        
+        if (signupError || !signupData) {
+          console.error(`Error fetching signup details for ${userEmail}`, signupError)
+          return new Response(JSON.stringify({ error: 'Failed to find signup details' }), 
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+        
+        // Create the user
+        const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+          email: signupData.email,
+          password: signupData.password,
+          email_confirm: true,
+          user_metadata: {
+            user_type: userType || 'educator',
+          }
+        })
+        
+        if (userError) {
+          console.error(`Error creating user for ${userEmail}`, userError)
+          return new Response(JSON.stringify({ error: 'Failed to create user' }), 
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+        
+        console.log(`User ${userEmail} created successfully with ID ${userData.user.id}`)
+        
+        // Delete signup record now that it's processed
+        await supabase
+          .from('educator_signups')
+          .delete()
+          .eq('email', userEmail)
+        
+        // Now update the profile with subscription details
+        await updateEducatorProfile(supabase, userData.user.id, session, planId)
+      } else {
+        // For existing users, look up their user ID from their email
+        const { data: userData, error: userError } = await supabase.auth.admin.listUsers()
+        
+        if (userError) {
+          console.error('Error listing users', userError)
+          return new Response(JSON.stringify({ error: 'Failed to find user' }), 
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+        
+        const user = userData.users.find(u => u.email === userEmail)
+        
+        if (!user) {
+          console.error(`User with email ${userEmail} not found`)
+          return new Response(JSON.stringify({ error: 'User not found' }), 
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+        
+        console.log(`Found existing user with ID ${user.id}`)
+        
+        // Update their profile with subscription details
+        await updateEducatorProfile(supabase, user.id, session, planId)
+      }
+    }
+    
+    // Return a successful response
+    return new Response(JSON.stringify({ received: true }), { 
+      status: 200, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    })
+  } catch (error) {
+    console.error('Webhook error:', error.message)
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 400, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    })
   }
-});
+})
 
-// Helper function to determine plan tier from price ID
-function getPlanTier(priceId: string | undefined): string {
-  if (!priceId) return 'basic';
+async function updateEducatorProfile(supabase, userId, session, planId) {
+  // Determine subscription tier based on price ID
+  let tier = 'basic'
   
-  // These should match your actual price IDs in Stripe
-  switch(priceId) {
-    case 'price_1Qxp1X2ef3wsxdNewIs5Ewzl':
-      return 'basic';
-    case 'price_1Qxp262ef3wsxdNeH5ShSDTi':
-      return 'standard';
-    case 'price_1Qxp2c2ef3wsxdNeQ62MW8h8':
-      return 'premium';
-    default:
-      return 'basic';
+  if (planId.includes('standard')) {
+    tier = 'standard'
+  } else if (planId.includes('premium')) {
+    tier = 'premium'
+  }
+  
+  console.log(`Updating user ${userId} to ${tier} tier`)
+  
+  // First check if profile exists
+  const { data: profile, error: profileError } = await supabase
+    .from('educator_profiles')
+    .select('id')
+    .eq('user_id', userId)
+    .single()
+  
+  if (profileError && profileError.code !== 'PGRST116') {
+    console.error(`Error fetching profile for ${userId}`, profileError)
+    throw new Error('Failed to fetch educator profile')
+  }
+  
+  if (!profile) {
+    // Create a basic profile if one doesn't exist yet
+    console.log(`Creating new profile for user ${userId}`)
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId)
+    
+    if (userError) {
+      console.error(`Error fetching user data for ${userId}`, userError)
+      throw new Error('Failed to fetch user data')
+    }
+    
+    const { error: insertError } = await supabase
+      .from('educator_profiles')
+      .insert({
+        user_id: userId,
+        email: userData.user.email,
+        name: userData.user.email.split('@')[0], // Use email prefix as temporary name
+        subscription_tier: tier,
+        subscription_status: 'active',
+        subscription_renewed_at: new Date().toISOString(),
+        stripe_customer_id: session.customer,
+        stripe_subscription_id: session.subscription,
+      })
+    
+    if (insertError) {
+      console.error(`Error creating profile for ${userId}`, insertError)
+      throw new Error('Failed to create educator profile')
+    }
+    
+    console.log(`Created new profile for user ${userId}`)
+  } else {
+    // Update existing profile
+    console.log(`Updating existing profile for user ${userId}`)
+    const { error: updateError } = await supabase
+      .from('educator_profiles')
+      .update({
+        subscription_tier: tier,
+        subscription_status: 'active',
+        subscription_renewed_at: new Date().toISOString(),
+        stripe_customer_id: session.customer,
+        stripe_subscription_id: session.subscription,
+      })
+      .eq('user_id', userId)
+    
+    if (updateError) {
+      console.error(`Error updating profile for ${userId}`, updateError)
+      throw new Error('Failed to update educator profile')
+    }
+    
+    console.log(`Updated profile for user ${userId}`)
   }
 }

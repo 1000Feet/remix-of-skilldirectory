@@ -67,6 +67,10 @@ export function StripeCheckout({
                 password,
                 created_at: new Date().toISOString()
               });
+              
+            console.log('Stored pending signup for', email);
+          } else {
+            console.log('Pending signup already exists for', email);
           }
         } catch (error) {
           console.error('Error storing pending signup:', error);
@@ -102,6 +106,11 @@ export function StripeCheckout({
       }
       
       if (data?.url) {
+        // Store in session storage that we're expecting a redirect after successful payment
+        sessionStorage.setItem('awaiting_payment_completion', 'true');
+        sessionStorage.setItem('checkout_price_id', priceId);
+        
+        // Redirect to Stripe
         window.location.href = data.url;
       } else {
         throw new Error('No checkout URL returned');
@@ -129,6 +138,8 @@ export function StripeCheckout({
       // Clear any pending signup data from session storage
       sessionStorage.removeItem('pending_educator_email');
       sessionStorage.removeItem('pending_educator_password');
+      sessionStorage.removeItem('awaiting_payment_completion');
+      sessionStorage.removeItem('checkout_price_id');
     } else if (checkoutCanceled === 'true') {
       toast.info('Checkout was canceled');
       // Clean up URL
