@@ -1,9 +1,16 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProfileManagement } from '@/hooks/useProfileManagement';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+
+type AuthResponse = {
+  data: {
+    user: any;
+    session: any;
+  } | null;
+  error: Error | null;
+}
 
 interface AuthContextType {
   supabaseClient: any;
@@ -12,7 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   signOut: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, userType: 'educator' | 'student') => Promise<void>;
+  signUp: (email: string, password: string, userType: 'educator' | 'student') => Promise<AuthResponse>;
   userType: 'educator' | 'student' | null;
   setUserType: (type: 'educator' | 'student') => void;
   profile: any;
@@ -29,7 +36,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get functions from useProfileManagement
   const { getEducatorProfile, getStudentProfile } = useProfileManagement();
 
   useEffect(() => {
@@ -41,12 +47,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (currentSession) {
           setSession(currentSession);
           setUser(currentSession.user);
-          // Determine user type based on the URL
           const path = location.pathname;
           const type = path.startsWith('/educator') ? 'educator' : 'student';
           setUserType(type);
-
-          // Fetch user profile immediately after determining user type
           const userProfile = await fetchUserProfile(currentSession.user.id, type);
           setProfile(userProfile);
         } else {
@@ -62,19 +65,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     fetchSession();
 
-    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
         if (currentSession?.user) {
-          // Determine user type based on the URL or metadata
           const path = location.pathname;
           const type = path.startsWith('/educator') ? 'educator' : 'student';
           setUserType(type);
-          
-          // Fetch user profile
           const userProfile = await fetchUserProfile(currentSession.user.id, type);
           setProfile(userProfile);
         } else {
@@ -117,7 +116,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, userType: 'educator' | 'student') => {
+  const signUp = async (email: string, password: string, userType: 'educator' | 'student'): Promise<AuthResponse> => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -131,7 +130,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) {
         toast.error(error.message);
-        throw error;
+        return { data: null, error };
       }
       
       setUser(data.user);
@@ -142,13 +141,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         navigate('/');
       }
+
+      return { data, error: null };
     } catch (error: any) {
       console.error("Sign up error:", error);
-      throw error;
+      return { data: null, error };
     }
   };
 
-  // Use dedicated function to fetch user profile to avoid circular dependency
   const fetchUserProfile = async (userId: string, userType: 'educator' | 'student'): Promise<any> => {
     if (userType === 'educator') {
       return await getEducatorProfile(userId);

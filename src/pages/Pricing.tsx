@@ -113,14 +113,14 @@ const PricingPage = () => {
         }
         
         // Create the user directly since it's a free plan
-        const signupResult = await signUp(email, password, 'educator');
+        const { data, error } = await signUp(email, password, 'educator');
         
-        if (signupResult && 'error' in signupResult && signupResult.error) {
-          throw new Error(signupResult.error.message);
+        if (error) {
+          throw new Error(error.message);
         }
         
         // If signup was successful and we have user data
-        if (signupResult && 'data' in signupResult && signupResult.data?.user?.id) {
+        if (data?.user?.id) {
           // Update educator profile with subscription info
           await supabase
             .from('educator_profiles')
@@ -129,7 +129,7 @@ const PricingPage = () => {
               subscription_status: 'active',
               subscription_renewed_at: new Date().toISOString()
             })
-            .eq('user_id', signupResult.data.user.id);
+            .eq('user_id', data.user.id);
           
           // Clear stored credentials
           sessionStorage.removeItem('pending_educator_email');
