@@ -1,9 +1,9 @@
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProfileManagement } from '@/hooks/useProfileManagement';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   supabaseClient: any;
@@ -21,8 +21,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const supabaseClient = useSupabaseClient();
-  const session = useSession();
+  const [session, setSession] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userType, setUserType] = useState<'educator' | 'student' | null>(null);
@@ -37,15 +36,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const fetchSession = async () => {
       setIsLoading(true);
       try {
-        if (session) {
-          setUser(session.user);
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
+        if (currentSession) {
+          setSession(currentSession);
+          setUser(currentSession.user);
           // Determine user type based on the URL
           const path = location.pathname;
           const type = path.startsWith('/educator') ? 'educator' : 'student';
           setUserType(type);
 
           // Fetch user profile immediately after determining user type
-          const userProfile = await fetchUserProfile(session.user.id, type);
+          const userProfile = await fetchUserProfile(currentSession.user.id, type);
           setProfile(userProfile);
         } else {
           setUser(null);
@@ -59,10 +61,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     fetchSession();
-  }, [session, location.pathname]);
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        
+        if (currentSession?.user) {
+          // Determine user type based on the URL or metadata
+          const path = location.pathname;
+          const type = path.startsWith('/educator') ? 'educator' : 'student';
+          setUserType(type);
+          
+          // Fetch user profile
+          const userProfile = await fetchUserProfile(currentSession.user.id, type);
+          setProfile(userProfile);
+        } else {
+          setProfile(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [location.pathname]);
 
   const signOut = async () => {
-    await supabaseClient.auth.signOut();
+    await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
     navigate('/');
@@ -70,7 +99,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -90,7 +119,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signUp = async (email: string, password: string, userType: 'educator' | 'student') => {
     try {
-      const { data, error } = await supabaseClient.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -129,7 +158,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const value: AuthContextType = {
-    supabaseClient,
+    supabaseClient: supabase,
     session,
     user,
     isLoading,
