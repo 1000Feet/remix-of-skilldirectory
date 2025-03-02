@@ -1,154 +1,124 @@
 
-import { useEffect, useState } from 'react';
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { EducatorProfileForm } from '@/components/educator/EducatorProfileForm';
-import { useAuth } from '@/contexts/AuthContext';
-import { EducatorProfile, useProfileManagement } from '@/hooks/useProfileManagement';
-import { LessonRequests } from '@/components/educator/LessonRequests';
-import { StripeManagement } from '@/components/stripe/StripeManagement';
-import { Loader } from 'lucide-react';
-import { toast } from 'sonner';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { Header } from "@/components/Header";
+import { EducatorProfileForm } from "@/components/educator/EducatorProfileForm";
+import { LessonRequests } from "@/components/educator/LessonRequests";
+import { SubscriptionInfo } from "@/components/educator/SubscriptionInfo";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import type { EducatorProfile } from "@/components/educator/types";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
 
-const EducatorDashboard = () => {
-  const { user, isLoading: authLoading } = useAuth();
-  const { getEducatorProfile } = useProfileManagement();
-  const [profile, setProfile] = useState<EducatorProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('profile');
+const createSlug = (name: string) => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+};
+
+export default function EducatorDashboard() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [profileData, setProfileData] = useState<EducatorProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const loadEducatorProfile = async () => {
-      if (!user) return;
-      
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    if (user?.user_metadata?.user_type !== 'educator') {
+      navigate('/');
+      return;
+    }
+
+    const fetchEducatorProfile = async () => {
       try {
-        setIsLoading(true);
-        const profileData = await getEducatorProfile(user.id);
-        setProfile(profileData);
+        const { data, error } = await supabase
+          .from('educator_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching educator profile:', error);
+          return;
+        }
+
+        // Handle ai_voice_agent field that could be a string from JSON
+        if (data && typeof data.ai_voice_agent === 'string') {
+          try {
+            data.ai_voice_agent = JSON.parse(data.ai_voice_agent);
+          } catch (e) {
+            // If parsing fails, set a default value
+            data.ai_voice_agent = { 
+              knowledge_base: [],
+              voice_id: 'cjVigY5qzO86Huf0OWal'
+            };
+          }
+        }
+
+        setProfileData(data);
       } catch (error) {
-        console.error("Error loading educator profile:", error);
-        toast.error("Failed to load your profile.");
+        console.error('Error:', error);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
-    if (!authLoading && user) {
-      loadEducatorProfile();
-    } else if (!authLoading && !user) {
-      navigate('/auth?redirect=educator-dashboard');
-    }
-  }, [user, authLoading, getEducatorProfile, navigate]);
+    fetchEducatorProfile();
+  }, [user, navigate]);
 
-  useEffect(() => {
-    // Check for checkout_success parameter
-    const checkoutSuccess = searchParams.get('checkout_success');
-    if (checkoutSuccess === 'true') {
-      toast.success("Your subscription has been activated!");
-      // Clean up URL parameters
-      navigate('/educator-dashboard', { replace: true });
-      
-      // Reload profile to get updated subscription status
-      if (user) {
-        getEducatorProfile(user.id).then(profileData => {
-          setProfile(profileData);
-        });
-      }
-    }
-  }, [searchParams, navigate, user, getEducatorProfile]);
-
-  const handleProfileUpdated = (updatedProfile: EducatorProfile) => {
-    setProfile(updatedProfile);
-  };
-
-  if (authLoading || isLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <Loader className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-lg">Loading your dashboard...</p>
-          </div>
-        </div>
-        <Footer />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
+  if (!user) {
+    return null;
+  }
+
+  const handleProfileUpdate = (updatedProfile: EducatorProfile) => {
+    setProfileData(updatedProfile);
+  };
+
+  const profileSlug = profileData?.name ? createSlug(profileData.name) : user.id;
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-background">
       <Header />
-      
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Educator Dashboard</h1>
-        
-        <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-8">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="lessons">Lesson Requests</TabsTrigger>
-            <TabsTrigger value="subscription">Subscription</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="profile" className="mt-0">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="p-4 bg-primary text-white">
-                <h2 className="text-xl font-semibold">Your Educator Profile</h2>
-                <p className="text-sm opacity-90">
-                  Complete your profile to appear in search results
-                </p>
-              </div>
-              <EducatorProfileForm 
-                initialData={profile}
-                onSuccess={handleProfileUpdated}
-              />
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="lessons" className="mt-0">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="p-4 bg-primary text-white">
-                <h2 className="text-xl font-semibold">Manage Lesson Requests</h2>
-                <p className="text-sm opacity-90">
-                  View and respond to lesson requests from students
-                </p>
-              </div>
-              <div className="p-6">
-                {profile ? (
-                  <LessonRequests educatorId={user?.id} />
-                ) : (
-                  <p>Please complete your profile first</p>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="subscription" className="mt-0">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="p-4 bg-primary text-white">
-                <h2 className="text-xl font-semibold">Manage Subscription</h2>
-                <p className="text-sm opacity-90">
-                  View and manage your current subscription plan
-                </p>
-              </div>
-              <div className="p-6">
-                <StripeManagement 
-                  profile={profile} 
-                  onProfileUpdated={handleProfileUpdated} 
-                />
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+      <main className="container mx-auto py-6 px-4 space-y-8">
+        <div className="flex justify-end">
+          <Link 
+            to={`/educator/${profileSlug}`} 
+            target="_blank"
+            className="inline-flex"
+          >
+            <Button variant="outline" className="gap-2">
+              <ExternalLink className="h-4 w-4" />
+              View Public Profile
+            </Button>
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <EducatorProfileForm 
+              initialData={profileData} 
+              onSuccess={handleProfileUpdate}
+            />
+          </div>
+          <div className="space-y-6">
+            <SubscriptionInfo />
+            <LessonRequests />
+          </div>
+        </div>
       </main>
-      
-      <Footer />
     </div>
   );
-};
-
-export default EducatorDashboard;
+}

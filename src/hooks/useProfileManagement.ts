@@ -1,190 +1,217 @@
 
-import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { UserType, StudentProfile, EducatorProfile } from '@/lib/auth-types';
+import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
-// Define the EducatorProfile type
-export interface EducatorProfile {
-  id: string;
-  user_id: string;
-  name: string;
-  email: string;
-  description?: string;
-  image?: string;
-  address?: string;
-  phone?: string;
-  website?: string;
-  categories?: string[];
-  tags?: string[];
-  about_business?: string;
-  facebook_url?: string;
-  instagram_url?: string;
-  youtube_url?: string;
-  ai_chatbot?: string;
-  ai_voice_agent: {
-    voice_id: string;
-    knowledge_base: string[];
-  };
-  created_at: string;
-  updated_at: string;
-  is_active?: boolean;
-  is_featured?: boolean;
-  subscription_tier?: string;
-  stripe_customer_id?: string;
-  stripe_subscription_id?: string;
-  subscription_status?: string;
-  subscription_renewed_at?: string;
-  role?: string;
-}
-
-// Define the StudentProfile type
-export interface StudentProfile {
-  id: string;
-  user_id: string;
-  name?: string;
-  email: string;
-  phone?: string;
-  address?: string;
-  created_at: string;
-  updated_at: string;
-  is_active?: boolean;
-  favorites?: string[];
-}
+type Tables = Database['public']['Tables'];
+type StudentProfileRow = Tables['student_profiles']['Row'];
+type EducatorProfileRow = Tables['educator_profiles']['Row'];
 
 export const useProfileManagement = () => {
-  const [loading, setLoading] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  
-  // Get the user from function parameter instead of useAuth to avoid circular dependency
-  const getEducatorProfile = async (userId: string) => {
-    setLoading(true);
+  const fetchProfile = async (userId: string, userType: UserType): Promise<StudentProfile | EducatorProfile | null> => {
     try {
-      const { data, error } = await supabase
-        .from('educator_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) throw error;
+      console.log(`Fetching ${userType} profile for user ${userId}`);
       
-      // Ensure ai_voice_agent has the correct structure
-      if (data && typeof data.ai_voice_agent === 'string') {
-        try {
-          data.ai_voice_agent = JSON.parse(data.ai_voice_agent);
-        } catch (e) {
-          data.ai_voice_agent = { voice_id: '', knowledge_base: [] };
+      if (userType === 'student') {
+        const { data: studentProfile, error: studentError } = await supabase
+          .from('student_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (studentError) {
+          console.error('Error fetching student profile:', studentError);
+          return null;
         }
-      } else if (data && !data.ai_voice_agent) {
-        data.ai_voice_agent = { voice_id: '', knowledge_base: [] };
+
+        if (studentProfile) {
+          return {
+            id: studentProfile.id,
+            email: studentProfile.email,
+            user_type: 'student',
+            name: studentProfile.name,
+            phone: studentProfile.phone,
+            created_at: studentProfile.created_at,
+            updated_at: studentProfile.updated_at,
+            user_id: studentProfile.user_id
+          };
+        }
+      } else {
+        const { data: educatorProfile, error: educatorError } = await supabase
+          .from('educator_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle<EducatorProfileRow>();
+
+        if (educatorError) {
+          console.error('Error fetching educator profile:', educatorError);
+          return null;
+        }
+
+        if (educatorProfile) {
+          return {
+            id: educatorProfile.id,
+            email: educatorProfile.email,
+            user_type: 'educator',
+            name: educatorProfile.name,
+            description: educatorProfile.description,
+            image: educatorProfile.image
+          };
+        }
       }
       
-      return data as EducatorProfile;
-    } catch (error) {
-      console.error('Error fetching educator profile:', error);
-      toast.error('Failed to fetch educator profile');
+      console.log(`No ${userType} profile found`);
       return null;
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error in fetchProfile:', error);
+      return null;
     }
   };
 
-  const getStudentProfile = async (userId: string) => {
-    setLoading(true);
+  const updateProfile = async (userId: string, userType: UserType, profileData: any): Promise<StudentProfile | EducatorProfile | null> => {
     try {
-      const { data, error } = await supabase
-        .from('student_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
+      console.log(`Updating ${userType} profile for user ${userId}`, profileData);
 
-      if (error) throw error;
-      return data as StudentProfile;
-    } catch (error) {
-      console.error('Error fetching student profile:', error);
-      toast.error('Failed to fetch student profile');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (userType === 'student') {
+        const { data, error } = await supabase
+          .from('student_profiles')
+          .update({
+            name: profileData.name,
+            phone: profileData.phone,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .select()
+          .single();
 
-  const updateEducatorProfile = async (userId: string, profileData: Partial<EducatorProfile>) => {
-    if (!userId) {
-      toast.error('You must be signed in to update your profile');
-      return null;
-    }
+        if (error) throw error;
 
-    setUpdating(true);
-    try {
-      // Ensure ai_voice_agent is handled correctly
-      let updatedData = { ...profileData };
-      
-      const { data, error } = await supabase
-        .from('educator_profiles')
-        .update(updatedData)
-        .eq('user_id', userId)
-        .select()
-        .single();
+        return {
+          id: data.id,
+          email: data.email,
+          user_type: 'student',
+          name: data.name,
+          phone: data.phone,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          user_id: data.user_id
+        };
+      } else {
+        const { data, error } = await supabase
+          .from('educator_profiles')
+          .update(profileData)
+          .eq('user_id', userId)
+          .select('*')
+          .single();
 
-      if (error) throw error;
-      
-      toast.success('Profile updated successfully');
-      
-      // Ensure ai_voice_agent has the correct structure in returned data
-      if (data && typeof data.ai_voice_agent === 'string') {
-        try {
-          data.ai_voice_agent = JSON.parse(data.ai_voice_agent);
-        } catch (e) {
-          data.ai_voice_agent = { voice_id: '', knowledge_base: [] };
-        }
-      } else if (data && !data.ai_voice_agent) {
-        data.ai_voice_agent = { voice_id: '', knowledge_base: [] };
+        if (error) throw error;
+
+        return {
+          id: data.id,
+          email: data.email,
+          user_type: 'educator',
+          name: data.name,
+          description: data.description,
+          image: data.image
+        };
       }
-      
-      return data as EducatorProfile;
-    } catch (error) {
-      console.error('Error updating educator profile:', error);
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
       toast.error('Failed to update profile');
-      return null;
-    } finally {
-      setUpdating(false);
+      throw error;
     }
   };
 
-  const updateStudentProfile = async (userId: string, profileData: Partial<StudentProfile>) => {
-    if (!userId) {
-      toast.error('You must be signed in to update your profile');
-      return null;
-    }
-
-    setUpdating(true);
+  const createProfile = async (userId: string, userType: UserType, data: any): Promise<void> => {
     try {
-      const { data, error } = await supabase
-        .from('student_profiles')
-        .update(profileData)
-        .eq('user_id', userId)
-        .select()
-        .single();
+      console.log(`Creating ${userType} profile for user ${userId}`, data);
 
-      if (error) throw error;
-      
-      toast.success('Profile updated successfully');
-      return data as StudentProfile;
-    } catch (error) {
-      console.error('Error updating student profile:', error);
-      toast.error('Failed to update profile');
-      return null;
-    } finally {
-      setUpdating(false);
+      if (userType === 'student') {
+        // First check if profile already exists
+        const { data: existingProfile } = await supabase
+          .from('student_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        // If profile exists, just return
+        if (existingProfile) {
+          console.log('Student profile already exists, skipping creation');
+          return;
+        }
+
+        const studentData = {
+          user_id: userId,
+          name: data.name || null,
+          phone: data.phone || null,
+          email: data.email,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase
+          .from('student_profiles')
+          .insert([studentData]);
+
+        if (error) {
+          console.error('Error creating student profile:', error);
+          throw error;
+        }
+      } else {
+        // Check if educator profile exists
+        const { data: existingProfile } = await supabase
+          .from('educator_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        // If profile exists, just return
+        if (existingProfile) {
+          console.log('Educator profile already exists, skipping creation');
+          return;
+        }
+
+        const { error: educatorError } = await supabase
+          .from('educator_profiles')
+          .insert({
+            user_id: userId,
+            email: data.email,
+            name: '', // Required field, start with empty string
+            description: null,
+            image: null,
+            website: null,
+            address: null,
+            phone: null,
+            about_business: null,
+            categories: [],
+            tags: [],
+            facebook_url: '',
+            instagram_url: '',
+            youtube_url: '',
+            ai_chatbot: { knowledge_base: [] },
+            ai_voice_agent: { 
+              knowledge_base: [],
+              voice_id: 'cjVigY5qzO86Huf0OWal'
+            },
+            subscription_tier: 'basic'
+          });
+
+        if (educatorError) {
+          console.error('Error creating educator profile:', educatorError);
+          throw educatorError;
+        }
+      }
+    } catch (error: any) {
+      console.error('Error creating profile:', error);
+      if (error.code === '23505') { // Unique constraint violation
+        console.log('Profile already exists, ignoring duplicate error');
+        return;
+      }
+      toast.error('Failed to create profile');
+      throw error;
     }
   };
 
-  return {
-    loading,
-    updating,
-    getEducatorProfile,
-    getStudentProfile,
-    updateEducatorProfile,
-    updateStudentProfile
-  };
+  return { fetchProfile, updateProfile, createProfile };
 };

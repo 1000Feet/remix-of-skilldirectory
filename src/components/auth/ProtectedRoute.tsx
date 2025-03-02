@@ -1,4 +1,3 @@
-
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -8,11 +7,11 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, userType }: ProtectedRouteProps) {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
 
   // Show nothing while checking auth status
-  if (isLoading) {
+  if (loading) {
     return null;
   }
 

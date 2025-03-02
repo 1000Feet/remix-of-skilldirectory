@@ -1,229 +1,139 @@
-
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useProfileManagement } from '@/hooks/useProfileManagement';
-import { toast } from 'sonner';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { AuthUser, UserType } from '@/lib/auth-types';
 import { supabase } from '@/integrations/supabase/client';
-
-type AuthResponse = {
-  data: {
-    user: any;
-    session: any;
-  } | null;
-  error: Error | null;
-}
+import { useAuthActions } from '@/hooks/useAuthActions';
+import { useProfileManagement } from '@/hooks/useProfileManagement';
 
 interface AuthContextType {
-  supabaseClient: any;
-  session: any;
-  user: any;
-  isLoading: boolean;
+  user: AuthUser | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<any>;
+  signUp: (email: string, password: string, userType: UserType) => Promise<void>;
   signOut: () => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, userType: 'educator' | 'student') => Promise<AuthResponse>;
-  userType: 'educator' | 'student' | null;
-  setUserType: (type: 'educator' | 'student') => void;
-  profile: any;
+  updateProfile: (data: any) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<any>(null);
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [userType, setUserType] = useState<'educator' | 'student' | null>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const { getEducatorProfile, getStudentProfile } = useProfileManagement();
-
-  // Check if we're waiting for a redirect after successful payment
-  const checkPendingRedirect = () => {
-    const awaitingPayment = sessionStorage.getItem('awaiting_payment_completion');
-    if (awaitingPayment === 'true') {
-      // We need to direct user to educator dashboard
-      navigate('/educator-dashboard?checkout_success=true');
-      sessionStorage.removeItem('awaiting_payment_completion');
-    }
-  };
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { signIn, signUp, signOut } = useAuthActions();
+  const { fetchProfile, updateProfile: updateUserProfile, createProfile } = useProfileManagement();
 
   useEffect(() => {
-    const fetchSession = async () => {
-      setIsLoading(true);
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (currentSession) {
-          setSession(currentSession);
-          setUser(currentSession.user);
-          const path = location.pathname;
-          const type = path.startsWith('/educator') ? 'educator' : 'student';
-          setUserType(type);
-          const userProfile = await fetchUserProfile(currentSession.user.id, type);
-          setProfile(userProfile);
-          
-          // Check if we need to redirect after login
-          const redirectAfterAuth = sessionStorage.getItem('redirect_after_auth');
-          if (redirectAfterAuth) {
-            navigate(`/${redirectAfterAuth}`);
-            sessionStorage.removeItem('redirect_after_auth');
-          }
-          
-          // Check if we were waiting for payment completion
-          checkPendingRedirect();
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
-      } catch (error) {
-        console.error("Error fetching session:", error);
-      } finally {
-        setIsLoading(false);
+    // Get current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        handleUserChange(session.user);
+      } else {
+        setLoading(false);
       }
-    };
+    });
 
-    fetchSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log("Auth state changed:", event);
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (currentSession?.user) {
-          const path = location.pathname;
-          const type = path.startsWith('/educator') ? 'educator' : 'student';
-          setUserType(type);
-          const userProfile = await fetchUserProfile(currentSession.user.id, type);
-          setProfile(userProfile);
-          
-          // Check if we need to redirect after login
-          const redirectAfterAuth = sessionStorage.getItem('redirect_after_auth');
-          if (redirectAfterAuth) {
-            navigate(`/${redirectAfterAuth}`);
-            sessionStorage.removeItem('redirect_after_auth');
-          }
-          
-          // Check if we were waiting for payment completion
-          checkPendingRedirect();
-        } else {
-          setProfile(null);
-        }
-        
-        setIsLoading(false);
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id);
+      
+      if (session?.user) {
+        await handleUserChange(session.user);
+      } else {
+        setUser(null);
+        // Clear stored user data on sign out
+        localStorage.removeItem('auth.user');
       }
-    );
+      setLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [location.pathname]);
+  }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    navigate('/');
-  };
-
-  const signIn = async (email: string, password: string) => {
+  const handleUserChange = async (authUser: any) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        toast.error(error.message);
-        throw error;
-      }
-      
-      setUser(data.user);
-      
-      // Check for redirects after login
-      const redirectAfterAuth = sessionStorage.getItem('redirect_after_auth');
-      if (redirectAfterAuth) {
-        navigate(`/${redirectAfterAuth}`);
-        sessionStorage.removeItem('redirect_after_auth');
-      } else {
-        navigate('/');
-      }
-      
-      // Check if we were waiting for payment completion
-      checkPendingRedirect();
-    } catch (error: any) {
-      console.error("Sign in error:", error);
-      throw error;
-    }
-  };
+      const userType = authUser.user_metadata?.user_type as UserType;
+      console.log('Handling user change:', authUser.id, userType);
 
-  const signUp = async (email: string, password: string, userType: 'educator' | 'student'): Promise<AuthResponse> => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            user_type: userType,
-          },
+      // Try to get profile from local storage first
+      const storedUserData = localStorage.getItem('auth.user');
+      let profile = storedUserData ? JSON.parse(storedUserData).profile : null;
+
+      // If no profile in storage, fetch or create from DB
+      if (!profile) {
+        // First try to fetch existing profile
+        profile = await fetchProfile(authUser.id, userType);
+        
+        // If no profile exists, create one
+        if (!profile) {
+          console.log('No profile found, creating new profile');
+          await createProfile(authUser.id, userType, {
+            email: authUser.email,
+            user_type: userType
+          });
+          // Fetch the newly created profile
+          profile = await fetchProfile(authUser.id, userType);
+        }
+      }
+
+      const userData = {
+        id: authUser.id,
+        email: authUser.email,
+        user_metadata: {
+          user_type: userType
         },
-      });
-      
-      if (error) {
-        toast.error(error.message);
-        return { data: null, error };
-      }
-      
-      setUser(data.user);
-      setUserType(userType);
-      
-      if (userType === 'educator') {
-        navigate('/pricing');
-      } else {
-        navigate('/');
-      }
+        profile
+      };
 
-      return { data, error: null };
-    } catch (error: any) {
-      console.error("Sign up error:", error);
-      return { data: null, error };
+      setUser(userData);
+      
+      // Save user data to localStorage for persistence
+      localStorage.setItem('auth.user', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Error handling user change:', error);
+      // Clear potentially corrupted data
+      localStorage.removeItem('auth.user');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchUserProfile = async (userId: string, userType: 'educator' | 'student'): Promise<any> => {
-    if (userType === 'educator') {
-      return await getEducatorProfile(userId);
-    } else {
-      return await getStudentProfile(userId);
-    }
-  };
+  const updateProfile = async (data: any) => {
+    if (!user) throw new Error('No user logged in');
+    
+    const updatedProfile = await updateUserProfile(
+      user.id,
+      user.user_metadata.user_type,
+      data
+    );
 
-  const value: AuthContextType = {
-    supabaseClient: supabase,
-    session,
-    user,
-    isLoading,
-    signOut,
-    signIn,
-    signUp,
-    userType,
-    setUserType,
-    profile,
+    const updatedUser = {
+      ...user,
+      profile: updatedProfile
+    };
+
+    setUser(updatedUser);
+    localStorage.setItem('auth.user', JSON.stringify(updatedUser));
   };
 
   return (
-    <AuthContext.Provider value={value}>
-      {!isLoading && children}
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      signIn,
+      signUp,
+      signOut,
+      updateProfile
+    }}>
+      {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}
