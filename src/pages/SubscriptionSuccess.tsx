@@ -40,109 +40,38 @@ const SubscriptionSuccess = () => {
           throw new Error('No session ID found');
         }
 
-        console.log(`Checking subscription status for session: ${sessionId}`);
-
-        // Wait for webhook to process the subscription
-        console.log('Waiting for subscription to be processed by webhook...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        // Check for the pending subscription first
-        const { data: pendingData, error: pendingError } = await supabase
+        // Update pending subscription status
+        const { error: updatePendingError } = await supabase
           .from('pending_subscriptions')
+          .update({ status: 'completed', session_id: sessionId })
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
+
+        if (updatePendingError) {
+          console.error('Error updating pending subscription:', updatePendingError);
+        }
+
+        // Check the subscription status
+        const { data, error } = await (supabase
+          .from('educator_subscriptions') as any)
           .select('*')
           .eq('user_id', user.id)
-          .eq('session_id', sessionId)
+          .order('created_at', { ascending: false })
+          .limit(1)
           .single();
 
-        if (pendingError) {
-          console.error('Error checking pending subscription:', pendingError);
-        } else if (pendingData) {
-          console.log('Found pending subscription data:', pendingData);
-          
-          if (pendingData.status === 'completed') {
-            console.log('Pending subscription is marked as completed');
-          } else {
-            console.log('Pending subscription status is still:', pendingData.status);
-            // Update the pending subscription with processing status
-            const { error: updateError } = await supabase
-              .from('pending_subscriptions')
-              .update({ status: 'processing' })
-              .eq('id', pendingData.id);
-              
-            if (updateError) {
-              console.error('Error updating pending subscription:', updateError);
-            }
-          }
-        }
-
-        // Check for the subscription record
-        let retries = 0;
-        const maxRetries = 5;
-        let subscriptionData = null;
-        
-        while (retries < maxRetries) {
-          console.log(`Checking for subscription (attempt ${retries + 1}/${maxRetries})...`);
-          
-          const { data, error } = await (supabase
-            .from('educator_subscriptions') as any)
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (error) {
-            console.error('Error checking subscription:', error);
-          } else if (data) {
-            subscriptionData = data;
-            console.log('Found subscription data:', data);
-            break;
-          }
-          
-          retries++;
-          if (retries < maxRetries) {
-            console.log('Waiting before retrying...');
-            await new Promise(resolve => setTimeout(resolve, 3000));
-          }
-        }
-
-        if (subscriptionData) {
-          setSubscription(subscriptionData);
-          
-          // Check for educator profile
-          const { data: profileData, error: profileError } = await supabase
-            .from('educator_profiles')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-
-          if (profileError) {
-            console.error('Error checking educator profile:', profileError);
-            // If no profile exists, we need to create one since payment is successful
-            if (profileError.code === 'PGRST116') {
-              console.log('No educator profile found, creating one...');
-              const { error: createError } = await supabase
-                .from('educator_profiles')
-                .insert({
-                  user_id: user.id,
-                  email: user.email,
-                  name: '',
-                  subscription_tier: subscriptionData.status === 'active' ? 'paid' : 'pending',
-                  subscription_status: subscriptionData.status
-                });
-                
-              if (createError) {
-                console.error('Error creating educator profile:', createError);
-              }
-            }
-          } else {
-            console.log('Found educator profile:', profileData);
-          }
+        if (error) {
+          // If no subscription exists yet, it might be processing
+          console.log('Waiting for subscription to be processed...');
+          // Don't throw here, as the webhook might not have processed yet
         } else {
-          console.log('No subscription found after retries, webhook might still be processing');
+          setSubscription(data);
         }
 
-        setLoading(false);
+        // Small delay to ensure the profile is created in the database
+        setTimeout(() => {
+          setLoading(false);
+        }, 2000);
       } catch (error) {
         console.error('Error checking subscription:', error);
         toast.error('Could not verify your subscription');
@@ -154,7 +83,7 @@ const SubscriptionSuccess = () => {
   }, [user, location.search, navigate]);
 
   const goToProfile = () => {
-    navigate('/educator/dashboard');
+    navigate('/educator/profile');
   };
 
   return (

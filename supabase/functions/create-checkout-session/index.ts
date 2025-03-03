@@ -1,9 +1,15 @@
 
-import Stripe from 'https://esm.sh/stripe@12.6.0?target=deno';
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.36.0';
+// Follow this setup guide to integrate the Deno runtime into your application:
+// https://docs.stripe.com/stripe-js/deno
 
-// Set up CORS headers
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@12.1.1?target=deno";
+
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+  apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(),
+});
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -16,93 +22,77 @@ serve(async (req) => {
   }
 
   try {
-    // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
-    });
-
     // Parse request body
-    const { priceId, userId, pendingId, customerEmail, planName } = await req.json();
-
-    // Validate input parameters
+    const { priceId, userId, pendingId, customerEmail } = await req.json();
+    
+    console.log('Creating checkout session with:', { priceId, userId, pendingId, customerEmail });
+    
     if (!priceId || !userId || !pendingId || !customerEmail) {
-      console.error('Missing required parameters:', { priceId, userId, pendingId, customerEmail });
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error('Missing required parameters');
     }
 
-    console.log('Creating checkout session with params:', {
-      priceId,
-      userId,
-      pendingId,
-      customerEmail,
-      planName
-    });
+    // Validate that the priceId is a valid Stripe price ID format
+    if (!priceId.startsWith('price_')) {
+      console.error(`Invalid price ID format: ${priceId}`);
+      throw new Error(`Invalid price ID format: ${priceId}. Must start with "price_"`);
+    }
 
-    // Create Stripe checkout session
+    // Create a new checkout session
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      customer_email: customerEmail,
       line_items: [
         {
           price: priceId,
           quantity: 1,
         },
       ],
-      metadata: {
-        userId,
-        pendingId,
-        planName: planName || '', // Include plan name in metadata
-      },
       mode: 'subscription',
       success_url: `${req.headers.get('origin')}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get('origin')}/subscription/cancel`,
+      client_reference_id: userId,
+      customer_email: customerEmail,
+      metadata: {
+        userId: userId,
+        pendingId: pendingId
+      },
     });
 
-    if (!session.id || !session.url) {
-      throw new Error('Failed to create Stripe session');
-    }
-
-    console.log('Checkout session created successfully:', { 
-      sessionId: session.id,
-      url: session.url
-    });
-
-    // Update the pending subscription with the session ID
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { error: updateError } = await supabase
-      .from('pending_subscriptions')
-      .update({ 
-        session_id: session.id
-      })
-      .eq('id', pendingId);
-
-    if (updateError) {
-      console.error('Error updating pending subscription:', updateError);
-    }
-
+    console.log('Checkout session created:', session.id);
+    
     return new Response(
-      JSON.stringify({
+      JSON.stringify({ 
         sessionId: session.id,
         sessionUrl: session.url
       }),
       { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        } 
       }
     );
   } catch (error) {
     console.error('Error creating checkout session:', error);
+    
+    // Extract more meaningful error information
+    const errorMessage = error.message || 'An unexpected error occurred';
+    const stripeError = error.type === 'Ce' ? {
+      type: error.rawType,
+      code: error.code,
+      param: error.param,
+      message: error.raw?.message || errorMessage
+    } : null;
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: errorMessage,
+        details: stripeError
+      }),
       { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        status: 400,
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        } 
       }
     );
   }

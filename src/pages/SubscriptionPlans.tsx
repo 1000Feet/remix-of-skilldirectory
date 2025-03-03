@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,17 +36,6 @@ const SubscriptionPlans = () => {
 
       console.log(`Starting subscription process for plan: ${plan.name} (${planId})`);
       console.log('Stripe Price ID:', plan.stripe_price_id);
-
-      // Clear any existing pending subscriptions for this user
-      const { error: clearError } = await supabase
-        .from('pending_subscriptions')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('status', 'pending');
-      
-      if (clearError) {
-        console.warn('Error clearing existing pending subscriptions:', clearError);
-      }
 
       // Create a pending subscription
       const { data: pendingSubscription, error: pendingError } = await supabase
@@ -90,8 +78,7 @@ const SubscriptionPlans = () => {
           priceId: plan.stripe_price_id,
           userId: user.id,
           pendingId: pendingSubscription.id,
-          customerEmail: user.email,
-          planName: plan.name // Add plan name to payload
+          customerEmail: user.email
         });
         
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
@@ -99,8 +86,7 @@ const SubscriptionPlans = () => {
             priceId: plan.stripe_price_id,
             userId: user.id,
             pendingId: pendingSubscription.id,
-            customerEmail: user.email,
-            planName: plan.name // Include plan name in the request
+            customerEmail: user.email
           },
         });
 
@@ -115,12 +101,6 @@ const SubscriptionPlans = () => {
         }
 
         console.log('Checkout session created successfully:', data.sessionId);
-        
-        // Update pending subscription with session ID
-        await supabase
-          .from('pending_subscriptions')
-          .update({ session_id: data.sessionId })
-          .eq('id', pendingSubscription.id);
         
         // Redirect to Stripe Checkout
         window.location.href = data.sessionUrl;

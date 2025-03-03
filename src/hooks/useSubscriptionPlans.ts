@@ -21,6 +21,8 @@ export const useSubscriptionPlans = () => {
       setLoading(true);
       console.log('Fetching subscription plans from Supabase...');
       
+      // Use type casting with "as any" to work around TypeScript issues
+      // This is safe since we know the table exists in our Supabase instance
       const { data, error } = await (supabase
         .from('membership_plans') as any)
         .select('*')
@@ -32,41 +34,17 @@ export const useSubscriptionPlans = () => {
 
       console.log('Raw subscription plans data:', data);
 
-      // Create a proper mapping of plan data to ensure correct display
-      const parsedPlans = data.map((plan: any) => {
-        // Always convert price to a number
-        let price = 0;
-        
-        if (typeof plan.price === 'string') {
-          price = parseFloat(plan.price);
-        } else if (typeof plan.price === 'number') {
-          price = plan.price;
-        }
-        
-        // Ensure price is a valid number
-        if (isNaN(price)) {
-          price = 0;
-          console.error(`Invalid price format for plan ${plan.name}: ${plan.price}`);
-        }
-        
-        console.log(`Plan ${plan.name}: Original price: ${plan.price}, Parsed price: ${price}, Stripe price ID: ${plan.stripe_price_id}`);
-        
-        // Parse features if needed
-        const features = Array.isArray(plan.features) 
+      // Parse the features array if it's stored as JSONB
+      const parsedPlans = data.map((plan: any) => ({
+        ...plan,
+        // Ensure price is displayed correctly as a number
+        price: Number(plan.price),
+        features: Array.isArray(plan.features) 
           ? plan.features 
           : (typeof plan.features === 'string' 
               ? JSON.parse(plan.features) 
-              : plan.features || []);
-        
-        return {
-          id: plan.id,
-          name: plan.name,
-          description: plan.description || '',
-          price: price,
-          stripe_price_id: plan.stripe_price_id,
-          features: features
-        };
-      });
+              : plan.features || [])
+      }));
 
       console.log('Parsed subscription plans:', parsedPlans);
       setPlans(parsedPlans || []);
