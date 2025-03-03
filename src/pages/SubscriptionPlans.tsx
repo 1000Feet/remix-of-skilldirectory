@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,32 +17,6 @@ const SubscriptionPlans = () => {
   const navigate = useNavigate();
   const [processing, setProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
-  const [hasEducatorProfile, setHasEducatorProfile] = useState(false);
-
-  // Check if the user already has an educator profile when component mounts
-  useEffect(() => {
-    const checkEducatorProfile = async () => {
-      if (!user) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('educator_profiles')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-          
-        if (error) throw error;
-        setHasEducatorProfile(!!data);
-      } catch (error) {
-        console.error('Error checking educator profile:', error);
-      } finally {
-        setHasCheckedProfile(true);
-      }
-    };
-    
-    checkEducatorProfile();
-  }, [user]);
 
   const handleSubscription = async (planId: string) => {
     if (!user) {
@@ -65,8 +39,6 @@ const SubscriptionPlans = () => {
       console.log(`Plan price: $${plan.price}`);
       console.log(`Stripe Price ID: ${plan.stripe_price_id}`);
       console.log(`Plan details:`, JSON.stringify(plan, null, 2));
-      console.log(`Current user ID:`, user.id);
-      console.log(`User exists in auth?`, !!user);
       
       console.log(`All available plans:`);
       plans.forEach(p => {
@@ -74,23 +46,14 @@ const SubscriptionPlans = () => {
       });
       console.log(`==============================================`);
 
-      // Check if the user already has an educator profile only if we haven't checked before
-      if (!hasCheckedProfile) {
-        const { data: existingProfile } = await supabase
-          .from('educator_profiles')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
+      // First, check if the user already has an educator profile
+      const { data: existingProfile } = await supabase
+        .from('educator_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-        if (existingProfile) {
-          toast.error('You already have an active educator profile');
-          setProcessing(false);
-          setSelectedPlan(null);
-          navigate('/dashboard');
-          return;
-        }
-      } else if (hasEducatorProfile) {
-        // If we've already checked and found a profile, don't continue
+      if (existingProfile) {
         toast.error('You already have an active educator profile');
         setProcessing(false);
         setSelectedPlan(null);
@@ -98,9 +61,6 @@ const SubscriptionPlans = () => {
         return;
       }
 
-      // Verify that the user exists in the auth.users table before creating a pending subscription
-      console.log('Checking if user exists in auth.users table...');
-      
       // Create a pending subscription entry
       const { data: pendingSubscription, error: pendingError } = await supabase
         .from('pending_subscriptions')
@@ -213,7 +173,7 @@ const SubscriptionPlans = () => {
 
       if (subscriptionError) throw subscriptionError;
 
-      // Now create the educator profile
+      // Then create the educator profile
       const { error: profileError } = await supabase
         .from('educator_profiles')
         .insert({
@@ -225,12 +185,6 @@ const SubscriptionPlans = () => {
         });
 
       if (profileError) throw profileError;
-
-      // Update pending subscription status
-      await supabase
-        .from('pending_subscriptions')
-        .update({ status: 'completed' })
-        .eq('user_id', user.id);
 
       toast.success('Successfully subscribed to Basic plan');
       navigate('/dashboard');
@@ -259,13 +213,6 @@ const SubscriptionPlans = () => {
 
   if (!user || user.user_metadata?.user_type !== 'educator') {
     navigate('/auth?signup=educator');
-    return null;
-  }
-
-  // If the user already has an educator profile and we've checked, redirect them to the dashboard
-  if (hasCheckedProfile && hasEducatorProfile) {
-    toast.error('You already have an active educator profile');
-    navigate('/dashboard');
     return null;
   }
 

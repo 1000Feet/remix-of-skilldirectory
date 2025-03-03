@@ -1,191 +1,182 @@
 
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CheckCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface Subscription {
+  id: string;
+  status: string;
+  plan_id: string;
+  user_id: string;
+  created_at: string;
+  [key: string]: any;
+}
 
 const SubscriptionSuccess = () => {
-  const [searchParams] = useSearchParams();
-  const sessionId = searchParams.get('session_id');
-  const { user } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [processed, setProcessed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
 
   useEffect(() => {
-    if (user && sessionId) {
-      processSuccessfulSubscription();
-    } else if (!loading) {
-      setError('Missing user information or session ID');
-    }
-  }, [user, sessionId]);
-
-  const processSuccessfulSubscription = async () => {
-    try {
-      setLoading(true);
-      console.log('Processing subscription success with session ID:', sessionId);
-
-      // Check if the user already has an educator profile
-      const { data: existingProfile } = await supabase
-        .from('educator_profiles')
-        .select('id')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (existingProfile) {
-        console.log('User already has an educator profile, redirecting to dashboard');
-        toast.info('You already have an active educator profile');
-        setProcessed(true);
-        navigate('/dashboard');
+    const checkSubscriptionStatus = async () => {
+      if (!user) {
+        navigate('/auth');
         return;
       }
 
-      // 1. Find the pending subscription
-      const { data: pendingSubscription, error: pendingError } = await supabase
-        .from('pending_subscriptions')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('status', 'pending')
-        .single();
+      try {
+        const params = new URLSearchParams(location.search);
+        const sessionId = params.get('session_id');
 
-      if (pendingError || !pendingSubscription) {
-        throw new Error('Unable to find your pending subscription');
-      }
+        if (!sessionId) {
+          throw new Error('No session ID found');
+        }
 
-      console.log('Found pending subscription:', pendingSubscription);
+        // Update pending subscription status
+        const { error: updatePendingError } = await supabase
+          .from('pending_subscriptions')
+          .update({ status: 'completed', session_id: sessionId })
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
 
-      // 2. Update the pending subscription
-      const { error: updateError } = await supabase
-        .from('pending_subscriptions')
-        .update({ 
-          status: 'completed',
-          session_id: sessionId
-        })
-        .eq('id', pendingSubscription.id);
+        if (updatePendingError) {
+          console.error('Error updating pending subscription:', updatePendingError);
+        }
 
-      if (updateError) {
-        throw new Error('Failed to update subscription status');
-      }
-
-      // 3. Get plan details
-      const { data: plan, error: planError } = await supabase
-        .from('membership_plans')
-        .select('*')
-        .eq('id', pendingSubscription.plan_id)
-        .single();
-
-      if (planError || !plan) {
-        throw new Error('Unable to find subscription plan details');
-      }
-
-      // 4. Create or update subscription record
-      const { error: subscriptionError } = await supabase
-        .from('educator_subscriptions')
-        .insert({
-          user_id: user?.id,
-          plan_id: pendingSubscription.plan_id,
-          status: 'active',
-          stripe_customer_id: pendingSubscription.customer_id,
-          stripe_subscription_id: pendingSubscription.subscription_id,
-          current_period_start: new Date().toISOString(),
-          // Default to 1 year for subscriptions processed here
-          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-        });
-
-      if (subscriptionError) {
-        throw new Error('Failed to create subscription record');
-      }
-
-      // 5. Create educator profile if it doesn't exist (double-check again)
-      const { data: finalCheckProfile } = await supabase
-        .from('educator_profiles')
-        .select('id')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (!finalCheckProfile) {
-        // Create new educator profile
-        const { error: profileError } = await supabase
+        // Check if educator profile already exists
+        const { data: existingProfile, error: profileError } = await supabase
           .from('educator_profiles')
-          .insert({
-            user_id: user?.id,
-            email: user?.email,
-            name: '',
-            subscription_tier: plan.name.toLowerCase().includes('basic') ? 'basic' : 
-                              plan.name.toLowerCase().includes('standard') ? 'standard' : 'premium',
-            subscription_status: 'active',
-            stripe_customer_id: pendingSubscription.customer_id,
-            stripe_subscription_id: pendingSubscription.subscription_id
-          });
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
         if (profileError) {
-          throw new Error('Failed to create educator profile');
+          console.error('Error checking for existing profile:', profileError);
         }
+
+        // Create educator profile if it doesn't exist
+        if (!existingProfile) {
+          console.log('Creating educator profile for user:', user.id);
+          
+          // Fetch subscription data to get the plan details
+          const { data: subscriptionData, error: subscriptionError } = await supabase
+            .from('educator_subscriptions')
+            .select('*, membership_plans:plan_id(*)')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (subscriptionError) {
+            console.error('Error fetching subscription data:', subscriptionError);
+          }
+          
+          // Determine subscription tier from the plan name
+          let subscriptionTier = 'basic';
+          if (subscriptionData?.membership_plans?.name) {
+            const planName = subscriptionData.membership_plans.name.toLowerCase();
+            if (planName.includes('premium')) {
+              subscriptionTier = 'premium';
+            } else if (planName.includes('professional')) {
+              subscriptionTier = 'professional';
+            }
+          }
+          
+          // Create the educator profile
+          const { error: createProfileError } = await supabase
+            .from('educator_profiles')
+            .insert({
+              user_id: user.id,
+              email: user.email,
+              name: '',
+              subscription_tier: subscriptionTier,
+              subscription_status: 'active',
+              stripe_subscription_id: subscriptionData?.stripe_subscription_id || null,
+              stripe_customer_id: subscriptionData?.stripe_customer_id || null
+            });
+
+          if (createProfileError) {
+            console.error('Error creating educator profile:', createProfileError);
+            toast.error('Failed to create your profile. Please contact support.');
+          } else {
+            console.log('Successfully created educator profile');
+          }
+        } else {
+          console.log('Educator profile already exists, skipping creation');
+        }
+
+        // Check the subscription status
+        const { data, error } = await (supabase
+          .from('educator_subscriptions') as any)
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error) {
+          // If no subscription exists yet, it might be processing
+          console.log('Waiting for subscription to be processed...');
+          // Don't throw here, as the webhook might not have processed yet
+        } else {
+          setSubscription(data);
+        }
+
+        // Small delay to ensure the profile is created in the database
+        setTimeout(() => {
+          setLoading(false);
+        }, 2000);
+      } catch (error) {
+        console.error('Error checking subscription:', error);
+        toast.error('Could not verify your subscription');
+        setLoading(false);
       }
+    };
 
-      console.log('Successfully processed subscription');
-      setProcessed(true);
-      toast.success('Your subscription has been successfully activated!');
+    checkSubscriptionStatus();
+  }, [user, location.search, navigate]);
 
-    } catch (err) {
-      console.error('Error processing subscription:', err);
-      setError(err.message || 'An error occurred while processing your subscription');
-      toast.error(err.message || 'Failed to process subscription');
-    } finally {
-      setLoading(false);
-    }
+  const goToProfile = () => {
+    navigate('/dashboard');
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       
-      <main className="flex-1 flex items-center justify-center bg-gray-50 py-12">
-        <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
-          {loading ? (
-            <div className="text-center py-10">
-              <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-              <h2 className="text-xl font-semibold">Processing Your Subscription</h2>
-              <p className="text-gray-600 mt-2">Please wait while we activate your account...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-10">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                <span className="text-red-500 text-2xl">×</span>
+      <main className="flex-1 bg-gray-50 py-16">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="w-16 h-16 text-primary animate-spin mb-4" />
+                <h2 className="text-2xl font-semibold mb-2">Verifying your subscription</h2>
+                <p className="text-gray-600">Please wait while we confirm your payment...</p>
               </div>
-              <h2 className="text-xl font-semibold text-red-600">Subscription Error</h2>
-              <p className="text-gray-600 mt-2">{error}</p>
-              <Button 
-                className="mt-6" 
-                onClick={() => navigate('/subscription-plans')}
-              >
-                Try Again
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center py-10">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-green-600">Subscription Successful!</h2>
-              <p className="text-gray-600 mt-4">
-                Your account has been successfully activated. You now have access to all features.
-              </p>
-              <Button 
-                className="mt-8 w-full" 
-                onClick={() => navigate('/dashboard')}
-              >
-                Go to Dashboard
-              </Button>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8">
+                <CheckCircle className="w-20 h-20 text-green-500 mb-6" />
+                <h1 className="text-3xl font-bold mb-4">Subscription Complete!</h1>
+                <p className="text-xl text-gray-700 mb-6">
+                  Your subscription has been successfully activated. You can now create and manage your educator profile.
+                </p>
+                <Button size="lg" onClick={goToProfile} className="text-lg px-8 py-6">
+                  Go to Your Profile
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );
