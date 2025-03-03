@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { Toaster as SonnerToaster } from 'sonner';
@@ -24,49 +23,47 @@ import './App.css';
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
-      <Router>
-        <SonnerToaster position="top-right" />
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/educators" element={<Listings />} />
-          <Route path="/educator/:id" element={<EducatorProfile />} />
-          <Route path="/support" element={<Support />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/subscription-plans" element={<SubscriptionPlans />} />
-          <Route path="/subscription-success" element={<SubscriptionSuccess />} />
-          <Route path="/subscription-cancel" element={<SubscriptionCancel />} />
-          
-          {/* Protected Routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute requiredUserType="educator">
-              <EducatorDashboard />
-            </ProtectedRoute>
-          } />
-          
-          {/* Keep backward compatibility */}
-          <Route path="/educator/dashboard" element={<Navigate to="/dashboard" replace />} />
-          
-          <Route path="/student/dashboard" element={
-            <ProtectedRoute requiredUserType="student">
-              <StudentDashboard />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin/settings" element={
-            <ProtectedRoute>
-              <AdminSettings />
-            </ProtectedRoute>
-          } />
-          
-          {/* 404 Route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Toaster />
-      </Router>
-    </ThemeProvider>
+    <Router>
+      <SonnerToaster position="top-right" />
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/educators" element={<Listings />} />
+        <Route path="/educator/:id" element={<EducatorProfile />} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/subscription-plans" element={<SubscriptionPlans />} />
+        <Route path="/subscription-success" element={<SubscriptionSuccess />} />
+        <Route path="/subscription-cancel" element={<SubscriptionCancel />} />
+        
+        {/* Protected Routes */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute requiredUserType="educator">
+            <EducatorDashboard />
+          </ProtectedRoute>
+        } />
+        
+        {/* Keep backward compatibility */}
+        <Route path="/educator/dashboard" element={<Navigate to="/dashboard" replace />} />
+        
+        <Route path="/student/dashboard" element={
+          <ProtectedRoute requiredUserType="student">
+            <StudentDashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/settings" element={
+          <ProtectedRoute>
+            <AdminSettings />
+          </ProtectedRoute>
+        } />
+        
+        {/* 404 Route */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Toaster />
+    </Router>
   );
 }
 
