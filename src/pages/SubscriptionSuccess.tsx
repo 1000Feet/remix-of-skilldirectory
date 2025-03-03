@@ -63,7 +63,7 @@ const SubscriptionSuccess = () => {
             console.log('Pending subscription is marked as completed');
           } else {
             console.log('Pending subscription status is still:', pendingData.status);
-            // Try to update it based on session ID
+            // Update the pending subscription with processing status
             const { error: updateError } = await supabase
               .from('pending_subscriptions')
               .update({ status: 'processing' })
@@ -108,21 +108,38 @@ const SubscriptionSuccess = () => {
 
         if (subscriptionData) {
           setSubscription(subscriptionData);
+          
+          // Check for educator profile
+          const { data: profileData, error: profileError } = await supabase
+            .from('educator_profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Error checking educator profile:', profileError);
+            // If no profile exists, we need to create one since payment is successful
+            if (profileError.code === 'PGRST116') {
+              console.log('No educator profile found, creating one...');
+              const { error: createError } = await supabase
+                .from('educator_profiles')
+                .insert({
+                  user_id: user.id,
+                  email: user.email,
+                  name: '',
+                  subscription_tier: subscriptionData.status === 'active' ? 'paid' : 'pending',
+                  subscription_status: subscriptionData.status
+                });
+                
+              if (createError) {
+                console.error('Error creating educator profile:', createError);
+              }
+            }
+          } else {
+            console.log('Found educator profile:', profileData);
+          }
         } else {
           console.log('No subscription found after retries, webhook might still be processing');
-        }
-
-        // Check for educator profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('educator_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (profileError) {
-          console.error('Error checking educator profile:', profileError);
-        } else {
-          console.log('Found educator profile:', profileData);
         }
 
         setLoading(false);
@@ -137,7 +154,7 @@ const SubscriptionSuccess = () => {
   }, [user, location.search, navigate]);
 
   const goToProfile = () => {
-    navigate('/educator/profile');
+    navigate('/educator/dashboard');
   };
 
   return (

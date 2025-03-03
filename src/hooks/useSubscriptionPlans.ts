@@ -32,16 +32,14 @@ export const useSubscriptionPlans = () => {
 
       console.log('Raw subscription plans data:', data);
 
-      // Create a proper mapping of plan names to ensure correct display
+      // Create a proper mapping of plan data to ensure correct display
       const parsedPlans = data.map((plan: any) => {
         // Always convert price to a number
         let price = 0;
         
         if (typeof plan.price === 'string') {
-          // Try to parse string to number
           price = parseFloat(plan.price);
         } else if (typeof plan.price === 'number') {
-          // Use the number directly
           price = plan.price;
         }
         
@@ -61,8 +59,11 @@ export const useSubscriptionPlans = () => {
               : plan.features || []);
         
         return {
-          ...plan,
+          id: plan.id,
+          name: plan.name,
+          description: plan.description || '',
           price: price,
+          stripe_price_id: plan.stripe_price_id,
           features: features
         };
       });

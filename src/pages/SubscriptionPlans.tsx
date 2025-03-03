@@ -90,7 +90,8 @@ const SubscriptionPlans = () => {
           priceId: plan.stripe_price_id,
           userId: user.id,
           pendingId: pendingSubscription.id,
-          customerEmail: user.email
+          customerEmail: user.email,
+          planName: plan.name // Add plan name to payload
         });
         
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
@@ -98,7 +99,8 @@ const SubscriptionPlans = () => {
             priceId: plan.stripe_price_id,
             userId: user.id,
             pendingId: pendingSubscription.id,
-            customerEmail: user.email
+            customerEmail: user.email,
+            planName: plan.name // Include plan name in the request
           },
         });
 
@@ -113,6 +115,12 @@ const SubscriptionPlans = () => {
         }
 
         console.log('Checkout session created successfully:', data.sessionId);
+        
+        // Update pending subscription with session ID
+        await supabase
+          .from('pending_subscriptions')
+          .update({ session_id: data.sessionId })
+          .eq('id', pendingSubscription.id);
         
         // Redirect to Stripe Checkout
         window.location.href = data.sessionUrl;
