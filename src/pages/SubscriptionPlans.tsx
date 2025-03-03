@@ -35,6 +35,8 @@ const SubscriptionPlans = () => {
         throw new Error('Selected plan not found');
       }
 
+      console.log(`Starting subscription process for plan: ${plan.name} (${planId})`);
+
       // Create a pending subscription
       const { data: pendingSubscription, error: pendingError } = await supabase
         .from('pending_subscriptions')
@@ -82,19 +84,20 @@ const SubscriptionPlans = () => {
           throw new Error(error.message || 'Failed to create checkout session');
         }
 
-        console.log('Checkout session created:', data);
-
         if (!data || !data.sessionUrl) {
+          console.error('Invalid response from checkout session creation:', data);
           throw new Error('Invalid response from checkout session creation');
         }
 
+        console.log('Checkout session created successfully:', data.sessionId);
+        
         // Redirect to Stripe Checkout
         window.location.href = data.sessionUrl;
-      } catch (fnError: any) {
+      } catch (fnError) {
         console.error('Function error:', fnError);
         throw new Error(`Edge function error: ${fnError.message}`);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating subscription:', error);
       
       let errorMessage = 'Failed to process subscription. Please try again later.';
@@ -105,9 +108,9 @@ const SubscriptionPlans = () => {
       }
       
       toast.error(errorMessage);
-      setSelectedPlan(null);
     } finally {
       setProcessing(false);
+      setSelectedPlan(null);
     }
   };
 
@@ -135,6 +138,17 @@ const SubscriptionPlans = () => {
           });
 
         if (profileError) throw profileError;
+      } else {
+        // Update existing profile subscription details
+        const { error: updateError } = await supabase
+          .from('educator_profiles')
+          .update({
+            subscription_tier: 'basic',
+            subscription_status: 'active'
+          })
+          .eq('user_id', user.id);
+
+        if (updateError) throw updateError;
       }
 
       // Create educator subscription record
@@ -152,7 +166,7 @@ const SubscriptionPlans = () => {
 
       toast.success('Successfully subscribed to Basic plan');
       navigate('/educator/profile');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error with free subscription:', error);
       let errorMessage = 'Failed to activate free subscription';
       

@@ -1,13 +1,9 @@
 
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import Stripe from 'https://esm.sh/stripe@12.4.0?target=deno'
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.24.0'
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import Stripe from 'https://esm.sh/stripe@12.6.0?target=deno'
-
-// Define proper CORS headers
+// CORS headers for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -15,128 +11,98 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 }
 
-// Create a Stripe client
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2022-11-15',
+  apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
 })
 
-// Create a Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 serve(async (req) => {
-  console.log('Function called with method:', req.method)
-  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS request')
     return new Response(null, {
       status: 204,
       headers: corsHeaders,
     })
   }
 
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
   try {
-    // Get the request body
-    const requestData = await req.json()
-    const { priceId, userId, pendingId, customerEmail } = requestData
+    // Parse request body
+    const { priceId, userId, pendingId, customerEmail } = await req.json()
     
-    console.log('Request data:', { priceId, userId, pendingId, customerEmail })
-
+    console.log(`Processing checkout request for price: ${priceId}, user: ${userId}, pendingId: ${pendingId}`)
+    
     if (!priceId || !userId || !pendingId || !customerEmail) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      )
+      throw new Error('Missing required parameters')
     }
 
-    console.log('Checking Stripe key:', !!Deno.env.get('STRIPE_SECRET_KEY'))
-
-    try {
-      // Fetch the price from Stripe to get product details
-      const price = await stripe.prices.retrieve(priceId)
-      if (!price) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid price ID' }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        )
+    // Create a new checkout session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      mode: 'subscription',
+      success_url: `${req.headers.get('origin')}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get('origin')}/subscription/cancel`,
+      customer_email: customerEmail,
+      client_reference_id: userId,
+      metadata: {
+        userId: userId,
+        pendingId: pendingId
       }
+    })
 
-      console.log('Price retrieved from Stripe:', price.id)
-
-      // Create a checkout session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
-        mode: 'subscription',
-        success_url: `${req.headers.get('origin')}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.get('origin')}/subscription/cancel`,
-        customer_email: customerEmail,
-        client_reference_id: userId,
-        metadata: {
-          pendingId: pendingId,
-          userId: userId,
-        },
+    // Update pending subscription with session ID
+    const { error: updateError } = await supabase
+      .from('pending_subscriptions')
+      .update({ 
+        session_id: session.id,
+        status: 'checkout_created'
       })
+      .eq('id', pendingId)
 
-      console.log('Checkout session created:', session.id)
-
-      // Update the pending subscription with the session ID
-      const { error: updateError } = await supabase
-        .from('pending_subscriptions')
-        .update({ session_id: session.id })
-        .eq('id', pendingId)
-
-      if (updateError) {
-        console.error('Error updating pending subscription:', updateError)
-      }
-
-      // Return the session URL
-      return new Response(
-        JSON.stringify({ 
-          sessionUrl: session.url,
-          sessionId: session.id,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      )
-    } catch (stripeError) {
-      console.error('Stripe API error:', stripeError)
-      return new Response(
-        JSON.stringify({ 
-          error: 'Stripe API error',
-          details: stripeError.message,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      )
+    if (updateError) {
+      console.error('Error updating pending subscription:', updateError)
+      throw new Error(`Failed to update pending subscription: ${updateError.message}`)
     }
-  } catch (error) {
-    console.error('Error creating checkout session:', error)
+
+    console.log(`Checkout session created successfully: ${session.id}`)
+
+    // Return the checkout session URL
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Error creating checkout session',
+        sessionUrl: session.url,
+        sessionId: session.id 
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
+    
+  } catch (error) {
+    console.error(`Error creating checkout session:`, error)
+    
+    return new Response(
+      JSON.stringify({ 
+        error: error.message || 'An unknown error occurred' 
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }
