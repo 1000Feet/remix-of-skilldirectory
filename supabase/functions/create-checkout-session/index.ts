@@ -55,63 +55,79 @@ serve(async (req) => {
       )
     }
 
-    // Fetch the price from Stripe to get product details
-    const price = await stripe.prices.retrieve(priceId)
-    if (!price) {
+    console.log('Checking Stripe key:', !!Deno.env.get('STRIPE_SECRET_KEY'))
+
+    try {
+      // Fetch the price from Stripe to get product details
+      const price = await stripe.prices.retrieve(priceId)
+      if (!price) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid price ID' }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      console.log('Price retrieved from Stripe:', price.id)
+
+      // Create a checkout session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${req.headers.get('origin')}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.get('origin')}/subscription/cancel`,
+        customer_email: customerEmail,
+        client_reference_id: userId,
+        metadata: {
+          pendingId: pendingId,
+          userId: userId,
+        },
+      })
+
+      console.log('Checkout session created:', session.id)
+
+      // Update the pending subscription with the session ID
+      const { error: updateError } = await supabase
+        .from('pending_subscriptions')
+        .update({ session_id: session.id })
+        .eq('id', pendingId)
+
+      if (updateError) {
+        console.error('Error updating pending subscription:', updateError)
+      }
+
+      // Return the session URL
       return new Response(
-        JSON.stringify({ error: 'Invalid price ID' }),
+        JSON.stringify({ 
+          sessionUrl: session.url,
+          sessionId: session.id,
+        }),
         {
-          status: 400,
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    } catch (stripeError) {
+      console.error('Stripe API error:', stripeError)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Stripe API error',
+          details: stripeError.message,
+        }),
+        {
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       )
     }
-
-    console.log('Price retrieved from Stripe:', price.id)
-
-    // Create a checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      success_url: `${req.headers.get('origin')}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get('origin')}/subscription/cancel`,
-      customer_email: customerEmail,
-      client_reference_id: userId,
-      metadata: {
-        pendingId: pendingId,
-        userId: userId,
-      },
-    })
-
-    console.log('Checkout session created:', session.id)
-
-    // Update the pending subscription with the session ID
-    const { error: updateError } = await supabase
-      .from('pending_subscriptions')
-      .update({ session_id: session.id })
-      .eq('id', pendingId)
-
-    if (updateError) {
-      console.error('Error updating pending subscription:', updateError)
-    }
-
-    // Return the session URL
-    return new Response(
-      JSON.stringify({ 
-        sessionUrl: session.url,
-        sessionId: session.id,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
   } catch (error) {
     console.error('Error creating checkout session:', error)
     return new Response(

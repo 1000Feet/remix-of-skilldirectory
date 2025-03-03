@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -89,13 +90,21 @@ const SubscriptionPlans = () => {
 
         // Redirect to Stripe Checkout
         window.location.href = data.sessionUrl;
-      } catch (fnError) {
+      } catch (fnError: any) {
         console.error('Function error:', fnError);
         throw new Error(`Edge function error: ${fnError.message}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating subscription:', error);
-      toast.error('Failed to process subscription. Please try again later.');
+      
+      let errorMessage = 'Failed to process subscription. Please try again later.';
+      if (error.message && error.message.includes('Stripe API error')) {
+        errorMessage = 'Stripe payment processing error. Please try again later.';
+      } else if (error.code === '23505') {
+        errorMessage = 'You already have a subscription pending. Please check your email.';
+      }
+      
+      toast.error(errorMessage);
       setSelectedPlan(null);
     } finally {
       setProcessing(false);
@@ -105,6 +114,28 @@ const SubscriptionPlans = () => {
   const handleFreeSubscription = async (planId: string) => {
     try {
       if (!user) return;
+
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('educator_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        // Create the educator profile if it doesn't exist
+        const { error: profileError } = await supabase
+          .from('educator_profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            name: '',
+            subscription_tier: 'basic',
+            subscription_status: 'active'
+          });
+
+        if (profileError) throw profileError;
+      }
 
       // Create educator subscription record
       const { error: subscriptionError } = await supabase
@@ -119,24 +150,18 @@ const SubscriptionPlans = () => {
 
       if (subscriptionError) throw subscriptionError;
 
-      // Create the educator profile
-      const { error: profileError } = await supabase
-        .from('educator_profiles')
-        .upsert({
-          user_id: user.id,
-          email: user.email,
-          name: '',
-          subscription_tier: 'basic',
-          subscription_status: 'active'
-        });
-
-      if (profileError) throw profileError;
-
       toast.success('Successfully subscribed to Basic plan');
       navigate('/educator/profile');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error with free subscription:', error);
-      toast.error('Failed to activate free subscription');
+      let errorMessage = 'Failed to activate free subscription';
+      
+      if (error.code === '23505') {
+        errorMessage = 'You already have an active subscription';
+        navigate('/educator/profile');
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setProcessing(false);
       setSelectedPlan(null);
