@@ -42,9 +42,9 @@ export type Database = {
           image: string | null
           instagram_url: string | null
           is_active: boolean | null
+          is_featured: boolean | null
           name: string
           phone: string | null
-          subscription_tier: string | null
           tags: string[] | null
           updated_at: string
           user_id: string
@@ -65,9 +65,9 @@ export type Database = {
           image?: string | null
           instagram_url?: string | null
           is_active?: boolean | null
+          is_featured?: boolean | null
           name: string
           phone?: string | null
-          subscription_tier?: string | null
           tags?: string[] | null
           updated_at?: string
           user_id: string
@@ -88,9 +88,9 @@ export type Database = {
           image?: string | null
           instagram_url?: string | null
           is_active?: boolean | null
+          is_featured?: boolean | null
           name?: string
           phone?: string | null
-          subscription_tier?: string | null
           tags?: string[] | null
           updated_at?: string
           user_id?: string
@@ -106,6 +106,7 @@ export type Database = {
           educator_profile_id: string
           id: string
           message: string | null
+          message_from_educator: string | null
           proposed_date: string
           proposed_time: string | null
           status: string
@@ -118,6 +119,7 @@ export type Database = {
           educator_profile_id: string
           id?: string
           message?: string | null
+          message_from_educator?: string | null
           proposed_date: string
           proposed_time?: string | null
           status?: string
@@ -130,6 +132,7 @@ export type Database = {
           educator_profile_id?: string
           id?: string
           message?: string | null
+          message_from_educator?: string | null
           proposed_date?: string
           proposed_time?: string | null
           status?: string
@@ -167,11 +170,57 @@ export type Database = {
           },
         ]
       }
+      reviews: {
+        Row: {
+          created_at: string | null
+          educator_id: string
+          id: string
+          rating: number
+          review_text: string | null
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          educator_id: string
+          id?: string
+          rating: number
+          review_text?: string | null
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          educator_id?: string
+          id?: string
+          rating?: number
+          review_text?: string | null
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_educator_id_fkey"
+            columns: ["educator_id"]
+            isOneToOne: false
+            referencedRelation: "educator_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_profiles: {
         Row: {
           address: string | null
           created_at: string
           email: string
+          favorites: Json | null
           id: string
           is_active: boolean | null
           name: string | null
@@ -183,6 +232,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           email: string
+          favorites?: Json | null
           id?: string
           is_active?: boolean | null
           name?: string | null
@@ -194,6 +244,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           email?: string
+          favorites?: Json | null
           id?: string
           is_active?: boolean | null
           name?: string | null
