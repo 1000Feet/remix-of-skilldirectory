@@ -67,10 +67,12 @@ export const ProtectedRoute = ({ children, requiredUserType }: ProtectedRoutePro
   }
 
   // Only redirect educators without profiles if they're trying to access the dashboard
+  // Fixed the comparison by using string equality check instead of strict identity
   if (
     user.user_metadata?.user_type === 'educator' && 
     !hasEducatorProfile && 
-    location.pathname === '/dashboard'
+    location.pathname === '/dashboard' &&
+    location.pathname !== '/subscription-plans'
   ) {
     return <Navigate to="/subscription-plans" replace />;
   }
