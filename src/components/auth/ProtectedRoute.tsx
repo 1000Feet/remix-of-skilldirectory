@@ -1,5 +1,4 @@
-
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +13,6 @@ export const ProtectedRoute = ({ children, userType }: ProtectedRouteProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [hasProfile, setHasProfile] = useState(false);
-  const location = useLocation();
 
   useEffect(() => {
     const checkProfile = async () => {
