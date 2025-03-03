@@ -32,13 +32,25 @@ export const useSubscriptionPlans = () => {
 
       console.log('Raw subscription plans data:', data);
 
-      // Ensure price is a number and features are properly parsed
+      // Create a proper mapping of plan names to ensure correct display
       const parsedPlans = data.map((plan: any) => {
-        // Ensure price is correctly processed as a number
-        const price = typeof plan.price === 'string' 
-          ? parseFloat(plan.price) 
-          : Number(plan.price);
-          
+        // Always convert price to a number
+        let price = 0;
+        
+        if (typeof plan.price === 'string') {
+          // Try to parse string to number
+          price = parseFloat(plan.price);
+        } else if (typeof plan.price === 'number') {
+          // Use the number directly
+          price = plan.price;
+        }
+        
+        // Ensure price is a valid number
+        if (isNaN(price)) {
+          price = 0;
+          console.error(`Invalid price format for plan ${plan.name}: ${plan.price}`);
+        }
+        
         console.log(`Plan ${plan.name}: Original price: ${plan.price}, Parsed price: ${price}, Stripe price ID: ${plan.stripe_price_id}`);
         
         // Parse features if needed
