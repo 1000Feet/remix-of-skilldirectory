@@ -1,34 +1,10 @@
+
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from './types';
-import { env } from '@/config/env';
+import { Database } from './types';
 
-if (!env.supabaseUrl || !env.supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+// Use environment variables with fallback values to prevent URL construction errors
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://sheslhegcubntqohlgts.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoZXNsaGVnY3VibnRxb2hsZ3RzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3MjEyMTQsImV4cCI6MjA1NTI5NzIxNH0.dIUlq1-6v8aFVt5ypoVIqZXxn2bJV7PWpCrbESy00DU';
 
-// Create a single instance of the Supabase client
-export const supabase = createClient<Database>(
-  env.supabaseUrl,
-  env.supabaseAnonKey,
-  {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-      storage: localStorage,
-    }
-  }
-);
-
-// Prevent multiple instances warning in development
-if (process.env.NODE_ENV === 'development') {
-  // @ts-ignore - Add a flag to window to track client instance
-  if (window.__SUPABASE_CLIENT_INITIALIZED) {
-    console.warn(
-      'Attempted to initialize multiple Supabase clients. Ignored to prevent duplicate instances.'
-    );
-  } else {
-    // @ts-ignore - Set flag on window
-    window.__SUPABASE_CLIENT_INITIALIZED = true;
-  }
-}
+// Create a single supabase client for interacting with your database
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);

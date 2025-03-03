@@ -189,12 +189,11 @@ export const useProfileManagement = () => {
             facebook_url: '',
             instagram_url: '',
             youtube_url: '',
-            ai_chatbot: { knowledge_base: [] },
-            ai_voice_agent: { 
+            ai_chatbot: null,
+            ai_voice_agent: {
               knowledge_base: [],
               voice_id: 'cjVigY5qzO86Huf0OWal'
-            },
-            subscription_tier: 'basic'
+            }
           });
 
         if (educatorError) {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -46,7 +47,35 @@ export default function EducatorDashboard() {
           return;
         }
 
-        setProfileData(data);
+        // Convert to EducatorProfile type
+        if (data) {
+          const profile: EducatorProfile = {
+            id: data.id,
+            user_id: data.user_id,
+            name: data.name,
+            description: data.description || '',
+            website: data.website || '',
+            address: data.address || '',
+            phone: data.phone || '',
+            email: data.email,
+            about_business: data.about_business || '',
+            facebook_url: data.facebook_url || '',
+            instagram_url: data.instagram_url || '',
+            youtube_url: data.youtube_url || '',
+            ai_chatbot: data.ai_chatbot || '',
+            image: data.image || null,
+            categories: data.categories || [],
+            tags: data.tags || [],
+            ai_voice_agent: data.ai_voice_agent ? {
+              knowledge_base: (data.ai_voice_agent as any)?.knowledge_base || [],
+              voice_id: (data.ai_voice_agent as any)?.voice_id || 'cjVigY5qzO86Huf0OWal'
+            } : {
+              knowledge_base: [],
+              voice_id: 'cjVigY5qzO86Huf0OWal'
+            }
+          };
+          setProfileData(profile);
+        }
       } catch (error) {
         console.error('Error:', error);
       } finally {

@@ -1,10 +1,11 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const useFavorites = () => {
-  const { user, userType } = useAuth();
+  const { user } = useAuth();
   const [favorites, setFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,23 +25,28 @@ export const useFavorites = () => {
       if (studentError) {
         console.error('Error fetching favorites:', studentError);
         // Only show error toast for student users
-        if (userType === 'student') {
+        if (user?.user_metadata?.user_type === 'student') {
           toast.error('Failed to load favorites');
         }
         return;
       }
 
-      setFavorites(studentProfile?.favorites || []);
+      // Handle potential null or non-array values safely
+      if (studentProfile?.favorites && Array.isArray(studentProfile.favorites)) {
+        setFavorites(studentProfile.favorites as string[]);
+      } else {
+        setFavorites([]);
+      }
     } catch (error) {
       console.error('Error in fetchFavorites:', error);
       // Only show error toast for student users
-      if (userType === 'student') {
+      if (user?.user_metadata?.user_type === 'student') {
         toast.error('Failed to load favorites');
       }
     } finally {
       setLoading(false);
     }
-  }, [user, userType]);
+  }, [user]);
 
   useEffect(() => {
     fetchFavorites();
