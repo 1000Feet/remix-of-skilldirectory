@@ -58,27 +58,27 @@ const SubscriptionPlans = () => {
         return;
       }
 
-      // For paid plans, create a Stripe Checkout session
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // For paid plans, call Supabase Edge Function instead of direct API
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
           priceId: plan.stripe_price_id,
           userId: user.id,
           pendingId: pendingSubscription.id,
           customerEmail: user.email
-        }),
+        },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create checkout session');
+      if (error) {
+        console.error('Error invoking function:', error);
+        throw new Error(error.message || 'Failed to create checkout session');
       }
 
-      const { sessionUrl } = await response.json();
-      window.location.href = sessionUrl;
+      if (!data || !data.sessionUrl) {
+        throw new Error('Invalid response from checkout session creation');
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.sessionUrl;
     } catch (error) {
       console.error('Error creating subscription:', error);
       toast.error('Failed to process subscription');
