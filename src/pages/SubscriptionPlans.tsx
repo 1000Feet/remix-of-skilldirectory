@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,7 +35,6 @@ const SubscriptionPlans = () => {
       }
 
       console.log(`Starting subscription process for plan: ${plan.name} (${planId})`);
-      console.log('Plan details:', plan);
       console.log('Stripe Price ID:', plan.stripe_price_id);
 
       // Create a pending subscription

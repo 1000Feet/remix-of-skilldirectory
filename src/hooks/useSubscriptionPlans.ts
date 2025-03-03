@@ -35,49 +35,16 @@ export const useSubscriptionPlans = () => {
       console.log('Raw subscription plans data:', data);
 
       // Parse the features array if it's stored as JSONB
-      const parsedPlans = data.map((plan: any) => {
-        // Logging for debugging
-        console.log(`Processing plan: ${plan.name} (${plan.id})`);
-        console.log(`Price raw value: ${plan.price}, type: ${typeof plan.price}`);
-        console.log(`Stripe price ID: ${plan.stripe_price_id}`);
-        
+      const parsedPlans = data.map((plan: any) => ({
+        ...plan,
         // Ensure price is displayed correctly as a number
-        let price = 0;
-        if (typeof plan.price === 'string') {
-          price = parseFloat(plan.price);
-        } else if (typeof plan.price === 'number') {
-          price = plan.price;
-        }
-        
-        if (isNaN(price)) {
-          console.error(`Invalid price format for plan ${plan.name}: ${plan.price}`);
-          price = 0;
-        }
-        
-        // Parse features properly
-        let features = [];
-        if (Array.isArray(plan.features)) {
-          features = plan.features;
-        } else if (typeof plan.features === 'string') {
-          try {
-            features = JSON.parse(plan.features);
-          } catch (e) {
-            console.error(`Error parsing features for plan ${plan.name}:`, e);
-            features = [];
-          }
-        } else if (plan.features && typeof plan.features === 'object') {
-          features = plan.features;
-        }
-        
-        return {
-          id: plan.id,
-          name: plan.name,
-          description: plan.description || '',
-          price: price,
-          stripe_price_id: plan.stripe_price_id,
-          features: Array.isArray(features) ? features : []
-        };
-      });
+        price: Number(plan.price),
+        features: Array.isArray(plan.features) 
+          ? plan.features 
+          : (typeof plan.features === 'string' 
+              ? JSON.parse(plan.features) 
+              : plan.features || [])
+      }));
 
       console.log('Parsed subscription plans:', parsedPlans);
       setPlans(parsedPlans || []);
