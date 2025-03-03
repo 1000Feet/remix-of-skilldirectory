@@ -1,4 +1,3 @@
-
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,12 +66,10 @@ export const ProtectedRoute = ({ children, requiredUserType }: ProtectedRoutePro
   }
 
   // Only redirect educators without profiles if they're trying to access the dashboard
-  // Fixed the comparison by using string equality check instead of strict identity
   if (
     user.user_metadata?.user_type === 'educator' && 
     !hasEducatorProfile && 
-    location.pathname === '/dashboard' &&
-    location.pathname !== '/subscription-plans'
+    location.pathname === '/dashboard'
   ) {
     return <Navigate to="/subscription-plans" replace />;
   }
