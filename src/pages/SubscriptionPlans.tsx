@@ -80,7 +80,8 @@ const SubscriptionPlans = () => {
           priceId: plan.stripe_price_id,
           userId: user.id,
           pendingId: pendingSubscription.id,
-          customerEmail: user.email
+          customerEmail: user.email,
+          planName: plan.name // Include plan name for extra validation
         });
         
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
@@ -88,7 +89,8 @@ const SubscriptionPlans = () => {
             priceId: plan.stripe_price_id,
             userId: user.id,
             pendingId: pendingSubscription.id,
-            customerEmail: user.email
+            customerEmail: user.email,
+            planName: plan.name // Pass plan name to the function
           },
         });
 
@@ -112,7 +114,8 @@ const SubscriptionPlans = () => {
           throw new Error('Missing session URL in checkout response');
         }
 
-        console.log('Checkout session created successfully:', data.sessionId);
+        console.log('Checkout session created successfully with plan:', data.planName);
+        console.log('Session ID:', data.sessionId);
         
         // Redirect to Stripe Checkout
         window.location.href = data.sessionUrl;

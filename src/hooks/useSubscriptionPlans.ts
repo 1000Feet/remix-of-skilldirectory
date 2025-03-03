@@ -34,10 +34,21 @@ export const useSubscriptionPlans = () => {
 
       console.log('Raw subscription plans data:', data);
 
+      if (!data || data.length === 0) {
+        console.warn('No subscription plans found in the database');
+        setPlans([]);
+        return;
+      }
+
       // Parse the features array if it's stored as JSONB
       const parsedPlans = data.map((plan: any) => {
         // Log detailed information about each plan
         console.log(`Plan ${plan.id}: name=${plan.name}, price=${plan.price}, stripe_price_id=${plan.stripe_price_id}`);
+        
+        // Validate the Stripe price ID
+        if (!plan.stripe_price_id || !plan.stripe_price_id.startsWith('price_')) {
+          console.warn(`Invalid Stripe price ID for plan ${plan.name}: ${plan.stripe_price_id}`);
+        }
         
         return {
           ...plan,

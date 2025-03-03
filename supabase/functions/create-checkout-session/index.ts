@@ -60,7 +60,7 @@ serve(async (req) => {
     // Get the plan details from Supabase using the price ID
     const { data: planData, error: planError } = await supabase
       .from('membership_plans')
-      .select('name, description')
+      .select('id, name, description, price')
       .eq('stripe_price_id', priceId)
       .single();
 
@@ -97,6 +97,7 @@ serve(async (req) => {
           {
             price: priceId,
             quantity: 1,
+            description: `${planName} Plan - Monthly Subscription`, // Add explicit description to override any default
           },
         ],
         mode: 'subscription',
@@ -107,16 +108,25 @@ serve(async (req) => {
         metadata: {
           userId: userId,
           pendingId: pendingId,
-          planName: planName
+          planName: planName,
+          planId: planData.id
         },
+        payment_intent_data: {
+          description: `${planName} Plan - Educator Profile Subscription`
+        }
       });
 
-      console.log('Checkout session created:', session.id);
+      console.log('Checkout session created successfully:', {
+        sessionId: session.id,
+        planName: planName,
+        planId: planData.id
+      });
       
       return new Response(
         JSON.stringify({ 
           sessionId: session.id,
-          sessionUrl: session.url
+          sessionUrl: session.url,
+          planName: planName
         }),
         { 
           headers: { 
