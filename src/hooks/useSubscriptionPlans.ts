@@ -21,8 +21,6 @@ export const useSubscriptionPlans = () => {
       setLoading(true);
       console.log('Fetching subscription plans from Supabase...');
       
-      // Use type casting with "as any" to work around TypeScript issues
-      // This is safe since we know the table exists in our Supabase instance
       const { data, error } = await (supabase
         .from('membership_plans') as any)
         .select('*')
@@ -34,23 +32,26 @@ export const useSubscriptionPlans = () => {
 
       console.log('Raw subscription plans data:', data);
 
-      // Parse the features array if it's stored as JSONB and ensure price is a number
+      // Ensure price is a number and features are properly parsed
       const parsedPlans = data.map((plan: any) => {
-        // Ensure price is a number
+        // Ensure price is correctly processed as a number
         const price = typeof plan.price === 'string' 
           ? parseFloat(plan.price) 
           : Number(plan.price);
           
-        console.log(`Plan ${plan.name}: Original price: ${plan.price}, Parsed price: ${price}`);
+        console.log(`Plan ${plan.name}: Original price: ${plan.price}, Parsed price: ${price}, Stripe price ID: ${plan.stripe_price_id}`);
+        
+        // Parse features if needed
+        const features = Array.isArray(plan.features) 
+          ? plan.features 
+          : (typeof plan.features === 'string' 
+              ? JSON.parse(plan.features) 
+              : plan.features || []);
         
         return {
           ...plan,
           price: price,
-          features: Array.isArray(plan.features) 
-            ? plan.features 
-            : (typeof plan.features === 'string' 
-                ? JSON.parse(plan.features) 
-                : plan.features || [])
+          features: features
         };
       });
 

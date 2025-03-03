@@ -42,11 +42,11 @@ const SubscriptionSuccess = () => {
 
         console.log(`Checking subscription status for session: ${sessionId}`);
 
-        // Update pending subscription status
+        // Mark pending subscription as processing (we don't complete it yet - the webhook will do that)
         const { error: updatePendingError } = await supabase
           .from('pending_subscriptions')
           .update({ 
-            status: 'completed', 
+            status: 'processing', 
             session_id: sessionId 
           })
           .eq('user_id', user.id)
@@ -58,11 +58,11 @@ const SubscriptionSuccess = () => {
 
         // Wait a bit for webhook to process
         console.log('Waiting for subscription to be processed by webhook...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Check for the subscription record
         let retries = 0;
-        const maxRetries = 3;
+        const maxRetries = 5;
         let subscriptionData = null;
         
         while (retries < maxRetries) {
@@ -87,7 +87,7 @@ const SubscriptionSuccess = () => {
           retries++;
           if (retries < maxRetries) {
             console.log('Waiting before retrying...');
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 3000));
           }
         }
 
@@ -95,6 +95,19 @@ const SubscriptionSuccess = () => {
           setSubscription(subscriptionData);
         } else {
           console.log('No subscription found after retries, webhook might still be processing');
+          
+          // As a fallback, if we don't find the subscription after retries,
+          // check if the pending subscription exists and has been updated
+          const { data: pendingData } = await supabase
+            .from('pending_subscriptions')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('session_id', sessionId)
+            .single();
+            
+          if (pendingData && pendingData.status === 'completed') {
+            console.log('Found completed pending subscription, but no educator_subscription yet');
+          }
         }
 
         // Check for educator profile
