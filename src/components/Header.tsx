@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -109,7 +110,7 @@ export const Header = ({ searchQuery, onSearchChange }: HeaderProps = {}) => {
                     <DropdownMenuContent align="end" className="w-[200px]">
                       {isEducator && (
                         <DropdownMenuItem asChild>
-                          <Link to="/educator/dashboard" className="w-full cursor-pointer flex items-center gap-2">
+                          <Link to="/dashboard" className="w-full cursor-pointer flex items-center gap-2">
                             <GraduationCap className="h-4 w-4" />
                             Educator Dashboard
                           </Link>

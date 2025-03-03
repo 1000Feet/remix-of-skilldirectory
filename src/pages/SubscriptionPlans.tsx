@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,7 +28,6 @@ const SubscriptionPlans = () => {
       setProcessing(true);
       setSelectedPlan(planId);
 
-      // Get the selected plan
       const plan = plans.find(p => p.id === planId);
       if (!plan) {
         throw new Error('Selected plan not found');
@@ -41,14 +39,12 @@ const SubscriptionPlans = () => {
       console.log(`Stripe Price ID: ${plan.stripe_price_id}`);
       console.log(`Plan details:`, JSON.stringify(plan, null, 2));
       
-      // Log all available plans for comparison
       console.log(`All available plans:`);
       plans.forEach(p => {
         console.log(`- ${p.name} ($${p.price}): ${p.stripe_price_id}`);
       });
       console.log(`==============================================`);
 
-      // Create a pending subscription
       const { data: pendingSubscription, error: pendingError } = await supabase
         .from('pending_subscriptions')
         .insert({
@@ -72,25 +68,22 @@ const SubscriptionPlans = () => {
 
       console.log('Created pending subscription:', pendingSubscription);
 
-      // If it's the free plan, skip Stripe and create educator profile directly
       if (plan.price === 0) {
         await handleFreeSubscription(planId);
         return;
       }
 
-      // Validate that we have a valid Stripe price ID
       if (!plan.stripe_price_id || !plan.stripe_price_id.startsWith('price_')) {
         throw new Error(`Invalid Stripe price ID: ${plan.stripe_price_id}`);
       }
 
-      // For paid plans, call Supabase Edge Function with explicit error handling
       try {
         const requestData = {
           priceId: plan.stripe_price_id,
           userId: user.id,
           pendingId: pendingSubscription.id,
           customerEmail: user.email,
-          planName: plan.name // Include plan name for extra validation
+          planName: plan.name
         };
         
         console.log('Calling Supabase function with data:', requestData);
@@ -122,7 +115,6 @@ const SubscriptionPlans = () => {
         console.log('Checkout session created successfully with plan:', data.planName);
         console.log('Session ID:', data.sessionId);
         
-        // Redirect to Stripe Checkout
         window.location.href = data.sessionUrl;
       } catch (fnError) {
         console.error('Function error:', fnError);
@@ -137,7 +129,6 @@ const SubscriptionPlans = () => {
       } else if (error.code === '23505') {
         errorMessage = 'You already have a subscription pending. Please check your email.';
       } else if (error.message) {
-        // Include more specific error information
         errorMessage = `Error: ${error.message}`;
       }
       
@@ -152,7 +143,6 @@ const SubscriptionPlans = () => {
     try {
       if (!user) return;
 
-      // Check if profile already exists
       const { data: existingProfile } = await supabase
         .from('educator_profiles')
         .select('*')
@@ -160,7 +150,6 @@ const SubscriptionPlans = () => {
         .maybeSingle();
 
       if (!existingProfile) {
-        // Create the educator profile if it doesn't exist
         const { error: profileError } = await supabase
           .from('educator_profiles')
           .insert({
@@ -173,7 +162,6 @@ const SubscriptionPlans = () => {
 
         if (profileError) throw profileError;
       } else {
-        // Update existing profile subscription details
         const { error: updateError } = await supabase
           .from('educator_profiles')
           .update({
@@ -185,7 +173,6 @@ const SubscriptionPlans = () => {
         if (updateError) throw updateError;
       }
 
-      // Create educator subscription record
       const { error: subscriptionError } = await supabase
         .from('educator_subscriptions')
         .insert({
@@ -193,20 +180,20 @@ const SubscriptionPlans = () => {
           plan_id: planId,
           status: 'active',
           current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year
+          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
         });
 
       if (subscriptionError) throw subscriptionError;
 
       toast.success('Successfully subscribed to Basic plan');
-      navigate('/educator/profile');
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error with free subscription:', error);
       let errorMessage = 'Failed to activate free subscription';
       
       if (error.code === '23505') {
         errorMessage = 'You already have an active subscription';
-        navigate('/educator/profile');
+        navigate('/dashboard');
       }
       
       toast.error(errorMessage);
