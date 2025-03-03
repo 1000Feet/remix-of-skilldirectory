@@ -50,6 +50,12 @@ const SubscriptionPlans = () => {
         .single();
 
       if (pendingError) {
+        if (pendingError.code === '23505') {
+          toast.error('You already have a subscription pending. Please check your email.');
+          setProcessing(false);
+          setSelectedPlan(null);
+          return;
+        }
         throw pendingError;
       }
 
@@ -95,7 +101,7 @@ const SubscriptionPlans = () => {
         window.location.href = data.sessionUrl;
       } catch (fnError) {
         console.error('Function error:', fnError);
-        throw new Error(`Edge function error: ${fnError.message}`);
+        throw new Error(`Error creating checkout session: ${fnError.message}`);
       }
     } catch (error) {
       console.error('Error creating subscription:', error);

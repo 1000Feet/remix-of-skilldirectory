@@ -1,224 +1,289 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-import Stripe from 'https://esm.sh/stripe@12.4.0?target=deno'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@12.1.1?target=deno";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.23.0";
 
+// Initialize Stripe
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
-})
+});
 
-const endpointSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-const supabase = createClient(supabaseUrl, supabaseKey)
+// Initialize Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
-  const signature = req.headers.get('stripe-signature')
-  if (!signature) {
-    return new Response(JSON.stringify({ error: 'No signature provided' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    })
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.text()
+    const signature = req.headers.get('stripe-signature');
+    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
     
-    // Verify the webhook signature
-    let event
-    try {
-      event = stripe.webhooks.constructEvent(body, signature, endpointSecret)
-    } catch (err) {
-      console.error(`Webhook signature verification failed:`, err)
-      return new Response(JSON.stringify({ error: `Webhook signature verification failed: ${err.message}` }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
+    if (!signature || !webhookSecret) {
+      return new Response(
+        JSON.stringify({ error: 'Missing stripe signature or webhook secret' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Processing Stripe webhook event: ${event.type}`)
+    const body = await req.text();
+    
+    // Verify webhook signature
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    } catch (err) {
+      console.error(`Webhook signature verification failed: ${err.message}`);
+      return new Response(
+        JSON.stringify({ error: `Webhook signature verification failed: ${err.message}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Handle specific events
+    console.log(`Received webhook event: ${event.type}`);
+
+    // Handle specific event types
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object
-        console.log(`Checkout session completed: ${session.id}`)
+        const session = event.data.object;
         
-        // Extract the user ID and pending ID from metadata
-        const userId = session.metadata?.userId
-        const pendingId = session.metadata?.pendingId
+        // Extract customer and payment details
+        const { userId, pendingId } = session.metadata;
+        const customerId = session.customer;
+        const subscriptionId = session.subscription;
         
-        if (!userId || !pendingId) {
-          throw new Error('Missing user ID or pending ID in session metadata')
+        if (!userId || !pendingId || !customerId || !subscriptionId) {
+          throw new Error('Required metadata missing from checkout session');
         }
-
-        // Get the pending subscription
-        const { data: pendingSubscription, error: pendingError } = await supabase
-          .from('pending_subscriptions')
-          .select('*')
-          .eq('id', pendingId)
-          .single()
-
-        if (pendingError) {
-          throw new Error(`Failed to retrieve pending subscription: ${pendingError.message}`)
+        
+        console.log(`Processing successful checkout for user ${userId}, subscription ${subscriptionId}`);
+        
+        // Get subscription details to determine the plan
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const priceId = subscription.items.data[0].price.id;
+        
+        // Get plan details from database
+        const { data: planData, error: planError } = await supabase
+          .from('membership_plans')
+          .select('id, name')
+          .eq('stripe_price_id', priceId)
+          .single();
+          
+        if (planError || !planData) {
+          throw new Error(`Failed to find plan with stripe_price_id ${priceId}: ${planError?.message}`);
         }
-
-        // Get Stripe subscription info
-        const subscriptionId = session.subscription
-        if (!subscriptionId) {
-          throw new Error('No subscription ID found in checkout session')
-        }
-
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-
-        // Get the plan ID from the pending subscription
-        const planId = pendingSubscription.plan_id
-
-        // Update the pending subscription
-        await supabase
+        
+        // Update pending subscription
+        const { error: pendingError } = await supabase
           .from('pending_subscriptions')
           .update({
             status: 'completed',
-            subscription_id: subscriptionId,
-            customer_id: session.customer
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscriptionId
           })
-          .eq('id', pendingId)
+          .eq('id', pendingId);
 
-        // Create or update the educator profile
+        if (pendingError) {
+          throw new Error(`Failed to update pending subscription: ${pendingError.message}`);
+        }
+        
+        // Check if profile already exists
         const { data: existingProfile } = await supabase
           .from('educator_profiles')
           .select('*')
           .eq('user_id', userId)
-          .maybeSingle()
-
-        const planTier = subscription.items.data[0]?.price.id === 'price_1Qxp262ef3wsxdNeH5ShSDTi' 
-          ? 'standard' 
-          : 'premium'
-
+          .maybeSingle();
+        
+        // Create or update educator profile
         if (!existingProfile) {
           // Create new profile
-          await supabase
+          const { error: profileError } = await supabase
             .from('educator_profiles')
             .insert({
               user_id: userId,
-              email: session.customer_email,
-              name: '',
-              subscription_tier: planTier,
+              subscription_tier: planData.name.toLowerCase(),
               subscription_status: 'active',
+              stripe_customer_id: customerId,
               stripe_subscription_id: subscriptionId,
-              stripe_customer_id: session.customer
-            })
+              name: ''
+            });
+            
+          if (profileError) {
+            throw new Error(`Failed to create educator profile: ${profileError.message}`);
+          }
         } else {
           // Update existing profile
-          await supabase
+          const { error: updateError } = await supabase
             .from('educator_profiles')
             .update({
-              subscription_tier: planTier,
+              subscription_tier: planData.name.toLowerCase(),
               subscription_status: 'active',
-              stripe_subscription_id: subscriptionId,
-              stripe_customer_id: session.customer
+              stripe_customer_id: customerId,
+              stripe_subscription_id: subscriptionId
             })
-            .eq('user_id', userId)
+            .eq('user_id', userId);
+            
+          if (updateError) {
+            throw new Error(`Failed to update educator profile: ${updateError.message}`);
+          }
         }
-
+        
         // Create subscription record
-        await supabase
+        const { error: subscriptionError } = await supabase
           .from('educator_subscriptions')
           .insert({
             user_id: userId,
-            stripe_subscription_id: subscriptionId,
-            stripe_customer_id: session.customer,
-            plan_id: planId,
+            plan_id: planData.id,
             status: 'active',
+            stripe_subscription_id: subscriptionId,
+            stripe_customer_id: customerId,
             current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
-          })
-
-        console.log(`Successfully processed subscription for user: ${userId}`)
-        break
-      }
-
-      case 'invoice.payment_succeeded': {
-        // Handle subscription renewals
-        const invoice = event.data.object
-        const subscriptionId = invoice.subscription
-        
-        if (subscriptionId) {
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+          });
           
-          // Update subscription end date
-          await supabase
-            .from('educator_subscriptions')
-            .update({
-              status: subscription.status,
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
-            })
-            .eq('stripe_subscription_id', subscriptionId)
-          
-          console.log(`Updated subscription renewal: ${subscriptionId}`)
+        if (subscriptionError) {
+          throw new Error(`Failed to create subscription record: ${subscriptionError.message}`);
         }
-        break
+        
+        console.log(`Successfully processed checkout for user ${userId}`);
+        break;
       }
-
+      
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object;
+        const subscriptionId = invoice.subscription;
+        
+        if (!subscriptionId) break;
+        
+        console.log(`Processing successful payment for subscription ${subscriptionId}`);
+        
+        // Get subscription details
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        
+        // Update subscription period in database
+        const { error: updateError } = await supabase
+          .from('educator_subscriptions')
+          .update({
+            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('stripe_subscription_id', subscriptionId);
+          
+        if (updateError) {
+          throw new Error(`Failed to update subscription period: ${updateError.message}`);
+        }
+        
+        console.log(`Successfully updated subscription period for ${subscriptionId}`);
+        break;
+      }
+      
       case 'customer.subscription.updated': {
-        const subscription = event.data.object
+        const subscription = event.data.object;
+        const subscriptionId = subscription.id;
+        const status = subscription.status;
         
-        // Update subscription status
-        await supabase
+        console.log(`Processing subscription update for ${subscriptionId}: ${status}`);
+        
+        // Update subscription status in database
+        const { error: updateError } = await supabase
           .from('educator_subscriptions')
           .update({
-            status: subscription.status,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+            status: status,
+            updated_at: new Date().toISOString()
           })
-          .eq('stripe_subscription_id', subscription.id)
+          .eq('stripe_subscription_id', subscriptionId);
+          
+        if (updateError) {
+          throw new Error(`Failed to update subscription status: ${updateError.message}`);
+        }
         
         // Also update the educator profile subscription status
-        await supabase
-          .from('educator_profiles')
-          .update({
-            subscription_status: subscription.status
-          })
-          .eq('stripe_subscription_id', subscription.id)
+        const { data: subscriptionData } = await supabase
+          .from('educator_subscriptions')
+          .select('user_id')
+          .eq('stripe_subscription_id', subscriptionId)
+          .single();
+          
+        if (subscriptionData) {
+          const { error: profileError } = await supabase
+            .from('educator_profiles')
+            .update({
+              subscription_status: status
+            })
+            .eq('user_id', subscriptionData.user_id);
+            
+          if (profileError) {
+            console.error(`Failed to update educator profile status: ${profileError.message}`);
+          }
+        }
         
-        console.log(`Updated subscription status: ${subscription.id} to ${subscription.status}`)
-        break
+        console.log(`Successfully updated subscription ${subscriptionId} status to ${status}`);
+        break;
       }
-
+      
       case 'customer.subscription.deleted': {
-        const subscription = event.data.object
+        const subscription = event.data.object;
+        const subscriptionId = subscription.id;
         
-        // Update subscription status to cancelled
-        await supabase
+        console.log(`Processing subscription cancellation for ${subscriptionId}`);
+        
+        // Update subscription status in database
+        const { error: updateError } = await supabase
           .from('educator_subscriptions')
           .update({
-            status: 'cancelled'
+            status: 'canceled',
+            updated_at: new Date().toISOString()
           })
-          .eq('stripe_subscription_id', subscription.id)
+          .eq('stripe_subscription_id', subscriptionId);
+          
+        if (updateError) {
+          throw new Error(`Failed to update subscription status to canceled: ${updateError.message}`);
+        }
         
         // Also update the educator profile subscription status
-        await supabase
-          .from('educator_profiles')
-          .update({
-            subscription_status: 'cancelled'
-          })
-          .eq('stripe_subscription_id', subscription.id)
+        const { data: subscriptionData } = await supabase
+          .from('educator_subscriptions')
+          .select('user_id')
+          .eq('stripe_subscription_id', subscriptionId)
+          .single();
+          
+        if (subscriptionData) {
+          const { error: profileError } = await supabase
+            .from('educator_profiles')
+            .update({
+              subscription_status: 'canceled'
+            })
+            .eq('user_id', subscriptionData.user_id);
+            
+          if (profileError) {
+            console.error(`Failed to update educator profile status: ${profileError.message}`);
+          }
+        }
         
-        console.log(`Marked subscription as cancelled: ${subscription.id}`)
-        break
+        console.log(`Successfully marked subscription ${subscriptionId} as canceled`);
+        break;
       }
     }
 
     return new Response(JSON.stringify({ received: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
-    
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   } catch (error) {
-    console.error(`Error processing webhook:`, error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    console.error(`Webhook error: ${error.message}`);
+    return new Response(
+      JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
-})
+});
