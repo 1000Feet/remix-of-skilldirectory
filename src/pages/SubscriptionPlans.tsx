@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -173,7 +172,7 @@ const SubscriptionPlans = () => {
 
       if (subscriptionError) throw subscriptionError;
 
-      // Now create the educator profile
+      // Then create the educator profile
       const { error: profileError } = await supabase
         .from('educator_profiles')
         .insert({
@@ -185,12 +184,6 @@ const SubscriptionPlans = () => {
         });
 
       if (profileError) throw profileError;
-
-      // Update pending subscription status
-      await supabase
-        .from('pending_subscriptions')
-        .update({ status: 'completed' })
-        .eq('user_id', user.id);
 
       toast.success('Successfully subscribed to Basic plan');
       navigate('/dashboard');
