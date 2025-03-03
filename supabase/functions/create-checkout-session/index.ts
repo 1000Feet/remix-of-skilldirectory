@@ -93,17 +93,14 @@ serve(async (req) => {
 
     console.log('Found plan data:', planData);
     const verifiedPlanName = planData.name;
-    const planDescription = planData.description || `${verifiedPlanName} Subscription`;
 
     // Create a new checkout session with the correct plan name
     try {
-      // FIXED: Removed the description property from line_items that was causing errors
       const session = await stripe.checkout.sessions.create({
         line_items: [
           {
             price: priceId,
             quantity: 1,
-            // NOTE: Removed description property that was causing the error
           },
         ],
         mode: 'subscription',
@@ -116,11 +113,8 @@ serve(async (req) => {
           pendingId: pendingId,
           planName: verifiedPlanName,
           planId: planData.id
-        },
-        // Use top-level description for the session instead
-        payment_intent_data: {
-          description: `${verifiedPlanName} Plan - Educator Profile Subscription`
         }
+        // Removed payment_intent_data as it's not compatible with subscription mode
       });
 
       console.log('Checkout session created successfully:', {
