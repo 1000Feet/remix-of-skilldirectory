@@ -42,12 +42,14 @@ export const useSubscriptionPlans = () => {
 
       // Parse the features array if it's stored as JSONB
       const parsedPlans = data.map((plan: any) => {
-        // Log detailed information about each plan
-        console.log(`Plan ${plan.id}: name=${plan.name}, price=${plan.price}, stripe_price_id=${plan.stripe_price_id}`);
+        // Log detailed information about each plan for debugging
+        console.log(`Plan "${plan.name}" (ID: ${plan.id}):`);
+        console.log(`  - Price: $${plan.price}`);
+        console.log(`  - Stripe Price ID: ${plan.stripe_price_id}`);
         
         // Validate the Stripe price ID
         if (!plan.stripe_price_id || !plan.stripe_price_id.startsWith('price_')) {
-          console.warn(`Invalid Stripe price ID for plan ${plan.name}: ${plan.stripe_price_id}`);
+          console.warn(`⚠️ Invalid Stripe price ID for plan ${plan.name}: ${plan.stripe_price_id}`);
         }
         
         return {

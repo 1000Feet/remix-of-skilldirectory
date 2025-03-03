@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,9 +35,18 @@ const SubscriptionPlans = () => {
         throw new Error('Selected plan not found');
       }
 
+      console.log(`=========== SUBSCRIPTION DEBUG INFO ===========`);
       console.log(`Starting subscription process for plan: ${plan.name} (${planId})`);
-      console.log('Stripe Price ID:', plan.stripe_price_id);
-      console.log('Plan details:', plan);
+      console.log(`Plan price: $${plan.price}`);
+      console.log(`Stripe Price ID: ${plan.stripe_price_id}`);
+      console.log(`Plan details:`, JSON.stringify(plan, null, 2));
+      
+      // Log all available plans for comparison
+      console.log(`All available plans:`);
+      plans.forEach(p => {
+        console.log(`- ${p.name} ($${p.price}): ${p.stripe_price_id}`);
+      });
+      console.log(`==============================================`);
 
       // Create a pending subscription
       const { data: pendingSubscription, error: pendingError } = await supabase
