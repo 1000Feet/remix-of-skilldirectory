@@ -27,8 +27,29 @@ export const useAuthActions = () => {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Signup failed - no user data returned');
 
+      // For student users, create the profile immediately
+      // For educators, the profile will be created after subscription
+      if (userType === 'student') {
+        // Check if the profile already exists
+        const { data: existingProfile } = await supabase
+          .from('student_profiles')
+          .select('id')
+          .eq('user_id', authData.user.id)
+          .single();
+
+        if (!existingProfile) {
+          // Create the student profile
+          await supabase.from('student_profiles').insert({
+            user_id: authData.user.id,
+            email: email
+          });
+        }
+      }
+
       toast.success('Your account has been created successfully!');
-      window.location.href = '/auth';
+      
+      // For educators, we'll redirect them to the subscription page after
+      // This happens in the Auth component
     } catch (error: any) {
       console.error('Signup error:', error);
       toast.error(error.message || 'Failed to create account');
@@ -45,7 +66,7 @@ export const useAuthActions = () => {
 
       if (error) throw error;
       
-      window.location.href = '/';
+      // Redirect will be handled by AuthContext
       return data;
     } catch (error: any) {
       console.error('Sign in error:', error);

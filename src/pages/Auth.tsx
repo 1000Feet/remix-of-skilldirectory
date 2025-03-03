@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -5,10 +6,11 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 export default function Auth() {
   const location = useLocation();
+  const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
   const signupParam = queryParams.get('signup');
   
@@ -22,6 +24,10 @@ export default function Auth() {
 
   // Redirect if user is already logged in
   if (user) {
+    // If user is an educator and just signed up, redirect to subscription page
+    if (userType === 'educator' && !isLogin) {
+      return <Navigate to="/subscription/plans" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 
@@ -32,6 +38,11 @@ export default function Auth() {
         await signIn(email, password);
       } else {
         await signUp(email, password, userType);
+        
+        // If educator, redirect to subscription selection
+        if (userType === 'educator') {
+          navigate('/subscription/plans');
+        }
       }
     } catch (error) {
       console.error('Authentication error:', error);

@@ -1,63 +1,91 @@
 
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sonner';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from './contexts/AuthContext';
+
+// Pages
 import Index from './pages/Index';
-import About from './pages/About';
-import Support from './pages/Support';
-import Pricing from './pages/Pricing';
-import Listings from './pages/Listings';
 import Auth from './pages/Auth';
-import NotFound from './pages/NotFound';
+import Listings from './pages/Listings';
+import EducatorProfile from './pages/EducatorProfile';
 import EducatorDashboard from './pages/EducatorDashboard';
 import StudentDashboard from './pages/StudentDashboard';
-import EducatorProfile from './pages/EducatorProfile';
+import About from './pages/About';
+import Support from './pages/Support';
+import NotFound from './pages/NotFound';
 import AdminSettings from './pages/AdminSettings';
-import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from './contexts/AuthContext';
-import { Toaster as SonnerToaster } from 'sonner';
+import Pricing from './pages/Pricing';
+import SubscriptionPlans from './pages/SubscriptionPlans';
+import SubscriptionSuccess from './pages/SubscriptionSuccess';
+import SubscriptionCancel from './pages/SubscriptionCancel';
+
+// Components
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
-function BusinessRedirect() {
-  const location = useLocation();
-  const newPath = location.pathname.replace('business', 'educator');
-  return <Navigate to={newPath} replace />;
-}
+// Initialize QueryClient
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <Router>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/support" element={<Support />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/listings" element={<Listings />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute userType="educator">
-                <EducatorDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/student-dashboard" 
-            element={
-              <ProtectedRoute userType="student">
-                <StudentDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route path="/educator/:slug" element={<EducatorProfile />} />
-          <Route path="/business/:slug" element={<BusinessRedirect />} />
-          <Route path="/admin" element={<AdminSettings />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Toaster />
-        <SonnerToaster />
+        <Router>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/support" element={<Support />} />
+            <Route path="/search" element={<Listings />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/educator/:id" element={<EducatorProfile />} />
+            
+            {/* Subscription Routes */}
+            <Route path="/subscription/plans" element={<SubscriptionPlans />} />
+            <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+            <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
+            
+            {/* Protected Routes */}
+            <Route
+              path="/student/dashboard"
+              element={
+                <ProtectedRoute userType="student">
+                  <StudentDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/educator/dashboard"
+              element={
+                <ProtectedRoute userType="educator">
+                  <EducatorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/educator/profile"
+              element={
+                <ProtectedRoute userType="educator">
+                  <EducatorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminSettings />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* 404 Route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Router>
+        <Toaster position="top-right" richColors />
       </AuthProvider>
-    </Router>
+    </QueryClientProvider>
   );
 }
 
