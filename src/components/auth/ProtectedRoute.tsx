@@ -57,19 +57,21 @@ export const ProtectedRoute = ({ children, requiredUserType }: ProtectedRoutePro
 
   // Check user type if required
   if (requiredUserType && user.user_metadata?.user_type !== requiredUserType) {
-    // If educator is trying to access dashboard but doesn't have profile, redirect to subscription plans
-    if (requiredUserType === 'educator' && user.user_metadata?.user_type === 'educator' && !hasEducatorProfile) {
-      return <Navigate to="/subscription-plans" replace />;
+    // Special case: For non-educators trying to access educator pages, redirect to home
+    if (requiredUserType === 'educator' && user.user_metadata?.user_type !== 'educator') {
+      return <Navigate to="/" replace />;
     }
     
+    // For all other mismatches, redirect to home
     return <Navigate to="/" replace />;
   }
 
-  // For educator-specific routes, check if they have a profile
+  // Only redirect educators without profiles if they're trying to access the dashboard
   if (
     user.user_metadata?.user_type === 'educator' && 
     !hasEducatorProfile && 
-    location.pathname === '/dashboard'
+    location.pathname === '/dashboard' &&
+    location.pathname !== '/subscription-plans'
   ) {
     return <Navigate to="/subscription-plans" replace />;
   }

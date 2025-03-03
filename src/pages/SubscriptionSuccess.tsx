@@ -31,6 +31,21 @@ const SubscriptionSuccess = () => {
       setLoading(true);
       console.log('Processing subscription success with session ID:', sessionId);
 
+      // Check if the user already has an educator profile
+      const { data: existingProfile } = await supabase
+        .from('educator_profiles')
+        .select('id')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (existingProfile) {
+        console.log('User already has an educator profile, redirecting to dashboard');
+        toast.info('You already have an active educator profile');
+        setProcessed(true);
+        navigate('/dashboard');
+        return;
+      }
+
       // 1. Find the pending subscription
       const { data: pendingSubscription, error: pendingError } = await supabase
         .from('pending_subscriptions')
@@ -87,14 +102,14 @@ const SubscriptionSuccess = () => {
         throw new Error('Failed to create subscription record');
       }
 
-      // 5. Create educator profile if it doesn't exist
-      const { data: existingProfile } = await supabase
+      // 5. Create educator profile if it doesn't exist (double-check again)
+      const { data: finalCheckProfile } = await supabase
         .from('educator_profiles')
         .select('id')
         .eq('user_id', user?.id)
         .maybeSingle();
 
-      if (!existingProfile) {
+      if (!finalCheckProfile) {
         // Create new educator profile
         const { error: profileError } = await supabase
           .from('educator_profiles')
