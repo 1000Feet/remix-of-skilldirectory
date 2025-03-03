@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Star, Heart } from "lucide-react";
 import { 
@@ -68,6 +69,7 @@ export const FeaturedEducators = () => {
     const fetchFeaturedEducators = async () => {
       try {
         setLoading(true);
+        console.log("Fetching featured educators");
         const { data, error } = await supabase
           .from('educator_profiles')
           .select('id, name, image, categories')
@@ -77,8 +79,13 @@ export const FeaturedEducators = () => {
           .not('name', 'is', null)
           .limit(6);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching featured educators:', error);
+          toast.error('Error loading featured educators');
+          throw error;
+        }
 
+        console.log("Featured educators data:", data);
         setEducators(data || []);
 
         // Fetch ratings for all featured educators

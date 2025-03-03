@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -72,12 +73,18 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
+    console.log("Index: Triggering fetchEducatorProfiles with selectedCategory:", selectedCategory);
     fetchEducatorProfiles();
   }, [selectedCategory, isAuthenticated]);
 
   const fetchEducatorProfiles = async (searchTerm?: string) => {
     try {
       setLoading(true);
+      console.log("Index: Fetching educator profiles with:", {
+        selectedCategory,
+        searchTerm: searchTerm || searchQuery
+      });
+      
       let query = supabase
         .from('educator_profiles')
         .select('id, name, description, image, categories, address, is_active')
@@ -102,9 +109,12 @@ const Index = () => {
       const { data, error } = await query;
 
       if (error) {
+        console.error('Error in query:', error);
         throw error;
       }
 
+      console.log("Index: Fetched profiles data:", data);
+      
       const profilesWithDistance = await Promise.all(
         (data || []).map(async (profile) => {
           let distance = null;
@@ -118,6 +128,7 @@ const Index = () => {
         })
       );
 
+      console.log("Index: Profiles with distance:", profilesWithDistance);
       setEducatorProfiles(profilesWithDistance);
     } catch (error) {
       console.error('Error fetching educator profiles:', error);

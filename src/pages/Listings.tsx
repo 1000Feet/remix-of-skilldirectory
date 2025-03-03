@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -87,18 +86,23 @@ const Listings = () => {
     };
   }, []);
 
-  // Update selected category when URL parameter changes
   useEffect(() => {
     setSelectedCategory(categoryFromUrl);
   }, [categoryFromUrl]);
 
   useEffect(() => {
+    console.log("Triggering fetchEducatorProfiles with selectedCategory:", selectedCategory);
     fetchEducatorProfiles();
   }, [selectedCategory, isAuthenticated]);
 
   const fetchEducatorProfiles = async (searchTerm?: string) => {
     try {
       setLoading(true);
+      console.log("Fetching educator profiles with:", {
+        selectedCategory,
+        searchTerm: searchTerm || searchQuery
+      });
+      
       let query = supabase
         .from('educator_profiles')
         .select('id, name, description, image, categories, address, is_active')
@@ -119,9 +123,12 @@ const Listings = () => {
       const { data, error } = await query;
 
       if (error) {
+        console.error('Error in query:', error);
         throw error;
       }
 
+      console.log("Fetched profiles data:", data);
+      
       const profilesWithDistance = await Promise.all(
         (data || []).map(async (profile) => {
           let distance = null;
@@ -135,6 +142,7 @@ const Listings = () => {
         })
       );
 
+      console.log("Profiles with distance:", profilesWithDistance);
       setEducatorProfiles(profilesWithDistance);
     } catch (error) {
       console.error('Error fetching educator profiles:', error);
