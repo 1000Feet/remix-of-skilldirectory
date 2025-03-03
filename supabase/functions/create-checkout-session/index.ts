@@ -25,9 +25,9 @@ serve(async (req) => {
 
     // Parse request body
     const body = await req.json();
-    const { priceId, userId, pendingId, customerEmail } = body;
+    const { priceId, userId, pendingId, customerEmail, planName } = body;
     
-    console.log('Creating checkout session with:', { priceId, userId, pendingId, customerEmail });
+    console.log('Creating checkout session with:', { priceId, userId, pendingId, customerEmail, planName });
     
     if (!priceId || !userId || !pendingId || !customerEmail) {
       console.error('Missing required parameters:', { priceId, userId, pendingId, customerEmail });
@@ -86,18 +86,24 @@ serve(async (req) => {
       );
     }
 
+    // Verify that the plan name from DB matches the one sent from frontend
+    if (planName && planData.name && planName !== planData.name) {
+      console.warn(`Plan name mismatch. Frontend sent: "${planName}", Database has: "${planData.name}"`);
+    }
+
     console.log('Found plan data:', planData);
-    const planName = planData.name;
-    const planDescription = planData.description || `${planName} Subscription`;
+    const verifiedPlanName = planData.name;
+    const planDescription = planData.description || `${verifiedPlanName} Subscription`;
 
     // Create a new checkout session with the correct plan name
     try {
+      // FIXED: Removed the description property from line_items that was causing errors
       const session = await stripe.checkout.sessions.create({
         line_items: [
           {
             price: priceId,
             quantity: 1,
-            description: `${planName} Plan - Monthly Subscription`, // Add explicit description to override any default
+            // NOTE: Removed description property that was causing the error
           },
         ],
         mode: 'subscription',
@@ -108,17 +114,18 @@ serve(async (req) => {
         metadata: {
           userId: userId,
           pendingId: pendingId,
-          planName: planName,
+          planName: verifiedPlanName,
           planId: planData.id
         },
+        // Use top-level description for the session instead
         payment_intent_data: {
-          description: `${planName} Plan - Educator Profile Subscription`
+          description: `${verifiedPlanName} Plan - Educator Profile Subscription`
         }
       });
 
       console.log('Checkout session created successfully:', {
         sessionId: session.id,
-        planName: planName,
+        planName: verifiedPlanName,
         planId: planData.id
       });
       
@@ -126,7 +133,7 @@ serve(async (req) => {
         JSON.stringify({ 
           sessionId: session.id,
           sessionUrl: session.url,
-          planName: planName
+          planName: verifiedPlanName
         }),
         { 
           headers: { 
