@@ -8,11 +8,11 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Initialize Stripe
+// Initialize Stripe - fixed initialization for Deno
 const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
 const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetch(),
+  // Remove the httpClient that's causing issues
 });
 
 // CORS headers for browser requests
@@ -31,78 +31,68 @@ serve(async (req) => {
   }
 
   try {
-    const { user_id, price_id, success_url, cancel_url } = await req.json();
+    const { priceId, userId, pendingId, customerEmail } = await req.json();
     
-    if (!user_id || !price_id) {
-      throw new Error('Missing required parameters: user_id and price_id are required');
+    if (!userId || !priceId) {
+      throw new Error('Missing required parameters: userId and priceId are required');
     }
 
-    console.log(`Creating checkout session for user ${user_id} with price ${price_id}`);
+    console.log(`Creating checkout session for user ${userId} with price ${priceId}`);
 
-    // Get user email for the checkout session
-    const { data: userData, error: userError } = await supabase
-      .auth
-      .admin
-      .getUserById(user_id);
+    // Update pending subscription with session information
+    if (pendingId) {
+      const { error: updateError } = await supabase
+        .from('pending_subscriptions')
+        .update({ 
+          status: 'processing',
+          stripe_price_id: priceId
+        })
+        .eq('id', pendingId);
 
-    if (userError || !userData) {
-      console.error('Error fetching user:', userError);
-      throw new Error(`Could not find user with ID: ${user_id}`);
+      if (updateError) {
+        console.error('Error updating pending subscription:', updateError);
+      }
     }
-
-    // Fetch price data to get the product name
-    const price = await stripe.prices.retrieve(price_id);
-    const product = await stripe.products.retrieve(price.product as string);
-    
-    console.log(`User email: ${userData.user.email}, Product: ${product.name}`);
-
-    // Create a pending subscription record
-    const { data: pendingData, error: pendingError } = await supabase
-      .from('pending_subscriptions')
-      .insert([
-        {
-          user_id: user_id,
-          plan_id: price_id,
-          status: 'pending',
-          plan_name: product.name,
-          payment_provider: 'stripe'
-        }
-      ])
-      .select('id')
-      .single();
-      
-    if (pendingError) {
-      console.error('Error creating pending subscription:', pendingError);
-      throw new Error('Failed to create pending subscription record');
-    }
-
-    console.log('Created pending subscription', pendingData);
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
-      customer_email: userData.user.email,
+      customer_email: customerEmail,
       line_items: [
         {
-          price: price_id,
+          price: priceId,
           quantity: 1,
         },
       ],
       mode: 'subscription',
-      success_url: `${success_url}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancel_url,
+      success_url: `${req.headers.get('origin')}/subscription-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get('origin')}/subscription-cancel`,
       metadata: {
-        user_id: user_id,
-        pending_subscription_id: pendingData.id
+        user_id: userId,
+        pending_subscription_id: pendingId
       }
     });
 
     console.log('Created checkout session', session.id);
 
+    // If we have a pendingId, update it with the session ID
+    if (pendingId) {
+      const { error: sessionUpdateError } = await supabase
+        .from('pending_subscriptions')
+        .update({ 
+          session_id: session.id
+        })
+        .eq('id', pendingId);
+
+      if (sessionUpdateError) {
+        console.error('Error updating session ID:', sessionUpdateError);
+      }
+    }
+
     // Return the session URL
     return new Response(
       JSON.stringify({
         sessionId: session.id,
-        url: session.url,
+        sessionUrl: session.url,
       }),
       {
         status: 200,
