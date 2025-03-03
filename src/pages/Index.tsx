@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { BusinessCard } from "@/components/BusinessCard";
 import { Header } from "@/components/Header";
@@ -190,7 +191,7 @@ const Index = () => {
           selectedCategory={selectedCategory} 
           onSelectCategory={handleCategorySelect}
         />
-        
+
         <div className="flex-1 space-y-6" ref={educatorListingsRef}>
           {loading ? (
             <div className="text-center py-8">Loading...</div>

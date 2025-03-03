@@ -173,7 +173,7 @@ const SubscriptionPlans = () => {
 
       if (subscriptionError) throw subscriptionError;
 
-      // Then create the educator profile
+      // Now create the educator profile
       const { error: profileError } = await supabase
         .from('educator_profiles')
         .insert({
@@ -185,6 +185,12 @@ const SubscriptionPlans = () => {
         });
 
       if (profileError) throw profileError;
+
+      // Update pending subscription status
+      await supabase
+        .from('pending_subscriptions')
+        .update({ status: 'completed' })
+        .eq('user_id', user.id);
 
       toast.success('Successfully subscribed to Basic plan');
       navigate('/dashboard');
