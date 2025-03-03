@@ -35,16 +35,21 @@ export const useSubscriptionPlans = () => {
       console.log('Raw subscription plans data:', data);
 
       // Parse the features array if it's stored as JSONB
-      const parsedPlans = data.map((plan: any) => ({
-        ...plan,
-        // Ensure price is displayed correctly as a number
-        price: Number(plan.price),
-        features: Array.isArray(plan.features) 
-          ? plan.features 
-          : (typeof plan.features === 'string' 
-              ? JSON.parse(plan.features) 
-              : plan.features || [])
-      }));
+      const parsedPlans = data.map((plan: any) => {
+        // Log detailed information about each plan
+        console.log(`Plan ${plan.id}: name=${plan.name}, price=${plan.price}, stripe_price_id=${plan.stripe_price_id}`);
+        
+        return {
+          ...plan,
+          // Ensure price is displayed correctly as a number
+          price: Number(plan.price),
+          features: Array.isArray(plan.features) 
+            ? plan.features 
+            : (typeof plan.features === 'string' 
+                ? JSON.parse(plan.features) 
+                : plan.features || [])
+        };
+      });
 
       console.log('Parsed subscription plans:', parsedPlans);
       setPlans(parsedPlans || []);
