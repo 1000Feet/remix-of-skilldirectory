@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,6 +35,7 @@ const SubscriptionPlans = () => {
       }
 
       console.log(`Starting subscription process for plan: ${plan.name} (${planId})`);
+      console.log('Stripe Price ID:', plan.stripe_price_id);
 
       // Create a pending subscription
       const { data: pendingSubscription, error: pendingError } = await supabase
@@ -65,6 +65,11 @@ const SubscriptionPlans = () => {
       if (plan.price === 0) {
         await handleFreeSubscription(planId);
         return;
+      }
+
+      // Validate that we have a valid Stripe price ID
+      if (!plan.stripe_price_id || !plan.stripe_price_id.startsWith('price_')) {
+        throw new Error(`Invalid Stripe price ID: ${plan.stripe_price_id}`);
       }
 
       // For paid plans, call Supabase Edge Function with explicit error handling
@@ -111,6 +116,9 @@ const SubscriptionPlans = () => {
         errorMessage = 'Stripe payment processing error. Please try again later.';
       } else if (error.code === '23505') {
         errorMessage = 'You already have a subscription pending. Please check your email.';
+      } else if (error.message) {
+        // Include more specific error information
+        errorMessage = `Error: ${error.message}`;
       }
       
       toast.error(errorMessage);

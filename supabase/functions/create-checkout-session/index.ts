@@ -22,12 +22,19 @@ serve(async (req) => {
   }
 
   try {
+    // Parse request body
     const { priceId, userId, pendingId, customerEmail } = await req.json();
     
     console.log('Creating checkout session with:', { priceId, userId, pendingId, customerEmail });
     
     if (!priceId || !userId || !pendingId || !customerEmail) {
       throw new Error('Missing required parameters');
+    }
+
+    // Validate that the priceId is a valid Stripe price ID format
+    if (!priceId.startsWith('price_')) {
+      console.error(`Invalid price ID format: ${priceId}`);
+      throw new Error(`Invalid price ID format: ${priceId}. Must start with "price_"`);
     }
 
     // Create a new checkout session
@@ -39,8 +46,8 @@ serve(async (req) => {
         },
       ],
       mode: 'subscription',
-      success_url: `${req.headers.get('origin')}/subscription-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get('origin')}/subscription-cancel`,
+      success_url: `${req.headers.get('origin')}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get('origin')}/subscription/cancel`,
       client_reference_id: userId,
       customer_email: customerEmail,
       metadata: {
@@ -65,12 +72,23 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error creating checkout session:', error);
+    
+    // Extract more meaningful error information
+    const errorMessage = error.message || 'An unexpected error occurred';
+    const stripeError = error.type === 'Ce' ? {
+      type: error.rawType,
+      code: error.code,
+      param: error.param,
+      message: error.raw?.message || errorMessage
+    } : null;
+    
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'An unexpected error occurred' 
+        error: errorMessage,
+        details: stripeError
       }),
       { 
-        status: 500,
+        status: 400,
         headers: { 
           ...corsHeaders,
           'Content-Type': 'application/json'
