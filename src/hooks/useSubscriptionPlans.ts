@@ -19,8 +19,10 @@ export const useSubscriptionPlans = () => {
   const fetchPlans = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('membership_plans')
+      // Use type casting with "as any" to work around TypeScript issues
+      // This is safe since we know the table exists in our Supabase instance
+      const { data, error } = await (supabase
+        .from('membership_plans') as any)
         .select('*')
         .order('price', { ascending: true });
 
@@ -28,7 +30,17 @@ export const useSubscriptionPlans = () => {
         throw error;
       }
 
-      setPlans(data || []);
+      // Parse the features array if it's stored as JSONB
+      const parsedPlans = data.map((plan: any) => ({
+        ...plan,
+        features: Array.isArray(plan.features) 
+          ? plan.features 
+          : (typeof plan.features === 'string' 
+              ? JSON.parse(plan.features) 
+              : plan.features || [])
+      }));
+
+      setPlans(parsedPlans || []);
     } catch (error) {
       console.error('Error fetching subscription plans:', error);
       toast.error('Failed to load subscription plans');

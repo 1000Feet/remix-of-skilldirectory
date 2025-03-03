@@ -13,26 +13,21 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 serve(async (req) => {
   try {
-    // Handle CORS preflight requests
     if (req.method === "OPTIONS") {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization"
         },
         status: 204,
       });
     }
 
-    // Only allow POST requests
     if (req.method !== "POST") {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
         status: 405,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: { "Content-Type": "application/json" },
       });
     }
 
@@ -43,50 +38,33 @@ serve(async (req) => {
         JSON.stringify({ error: "Missing required parameters" }),
         {
           status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
+          headers: { "Content-Type": "application/json" },
         }
       );
     }
 
-    // Get the frontend URL from environment or use a default
-    const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://skilldirectory.lovable.app";
-    
-    // Create a customer if one doesn't exist
-    const { data: existingCustomers, error: customerError } = await supabase
-      .from("educator_profiles")
-      .select("stripe_customer_id")
-      .eq("user_id", userId)
-      .maybeSingle();
+    // Get plan details from database
+    const { data: plan, error: planError } = await supabase
+      .from("membership_plans")
+      .select("name, price")
+      .eq("stripe_price_id", priceId)
+      .single();
 
-    if (customerError && customerError.code !== "PGRST116") {
-      console.error("Error checking existing customer:", customerError);
-      throw new Error("Failed to check existing customer");
+    if (planError) {
+      console.error("Error fetching plan:", planError);
+      return new Response(
+        JSON.stringify({ error: "Failed to retrieve plan details" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
-    let customerId = existingCustomers?.stripe_customer_id;
-
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: customerEmail,
-        metadata: {
-          user_id: userId,
-        },
-      });
-      customerId = customer.id;
-
-      // Update the pending subscription with the customer ID
-      await supabase
-        .from("pending_subscriptions")
-        .update({ customer_id: customerId })
-        .eq("id", pendingId);
-    }
-
-    // Create the checkout session
+    // Create a checkout session
+    const baseUrl = req.headers.get("origin") || "http://localhost:3000";
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
+      payment_method_types: ["card"],
       line_items: [
         {
           price: priceId,
@@ -94,8 +72,9 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${frontendUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${frontendUrl}/subscription/cancel`,
+      success_url: `${baseUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/subscription/cancel`,
+      customer_email: customerEmail,
       metadata: {
         user_id: userId,
         pending_id: pendingId,
@@ -103,19 +82,20 @@ serve(async (req) => {
     });
 
     // Update the pending subscription with the session ID
-    await supabase
+    const { error: updateError } = await supabase
       .from("pending_subscriptions")
       .update({ session_id: session.id })
       .eq("id", pendingId);
 
+    if (updateError) {
+      console.error("Error updating pending subscription:", updateError);
+    }
+
     return new Response(
-      JSON.stringify({ sessionUrl: session.url, sessionId: session.id }),
+      JSON.stringify({ sessionUrl: session.url }),
       {
         status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: { "Content-Type": "application/json" },
       }
     );
   } catch (error) {
@@ -124,10 +104,7 @@ serve(async (req) => {
       JSON.stringify({ error: error.message || "Internal server error" }),
       {
         status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: { "Content-Type": "application/json" },
       }
     );
   }

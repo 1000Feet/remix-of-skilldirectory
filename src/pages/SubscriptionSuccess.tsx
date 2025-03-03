@@ -9,12 +9,21 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface Subscription {
+  id: string;
+  status: string;
+  plan_id: string;
+  user_id: string;
+  created_at: string;
+  [key: string]: any;
+}
+
 const SubscriptionSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<any>(null);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
 
   useEffect(() => {
     const checkSubscriptionStatus = async () => {
@@ -32,8 +41,9 @@ const SubscriptionSuccess = () => {
         }
 
         // Check the subscription status
-        const { data, error } = await supabase
-          .from('educator_subscriptions')
+        // Use type casting with "as any" to work around TypeScript issues
+        const { data, error } = await (supabase
+          .from('educator_subscriptions') as any)
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })

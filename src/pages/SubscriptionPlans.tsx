@@ -36,8 +36,9 @@ const SubscriptionPlans = () => {
       }
 
       // Create a pending subscription
-      const { data: pendingSubscription, error: pendingError } = await supabase
-        .from('pending_subscriptions')
+      // Use type casting with "as any" to work around TypeScript issues
+      const { data: pendingSubscription, error: pendingError } = await (supabase
+        .from('pending_subscriptions') as any)
         .insert({
           user_id: user.id,
           email: user.email,
@@ -92,8 +93,9 @@ const SubscriptionPlans = () => {
       if (!user) return;
 
       // Create educator subscription record
-      const { error: subscriptionError } = await supabase
-        .from('educator_subscriptions')
+      // Use type casting with "as any" to work around TypeScript issues
+      const { error: subscriptionError } = await (supabase
+        .from('educator_subscriptions') as any)
         .insert({
           user_id: user.id,
           plan_id: planId,
