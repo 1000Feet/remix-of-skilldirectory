@@ -48,7 +48,7 @@ const getEmbedUrl = (url: string) => {
 };
 
 const EducatorProfile = () => {
-  const { slug } = useParams();
+  const { id: slugParam } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const profileId = location.state?.id;
@@ -63,62 +63,95 @@ const EducatorProfile = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!profileId) {
-        const { data: slugData, error: slugError } = await supabase
-          .from('educator_profiles')
-          .select('*')
-          .ilike('name', slug?.replace(/-/g, '%') || '')
-          .maybeSingle();
+      setLoading(true);
+      
+      try {
+        // If we have a profile ID from state, use that directly
+        if (profileId) {
+          const { data, error: fetchError } = await supabase
+            .from('educator_profiles')
+            .select('*')
+            .eq('id', profileId)
+            .maybeSingle();
 
-        if (slugError || !slugData) {
-          setError("Profile not found");
-          setLoading(false);
-          return;
+          if (fetchError) {
+            console.error('Error fetching profile by ID:', fetchError);
+            throw fetchError;
+          }
+
+          if (!data) {
+            setError("Profile not found");
+            setLoading(false);
+            return;
+          }
+
+          // Check if the URL matches the slug for this profile
+          if (data.name) {
+            const correctSlug = createSlug(data.name);
+            if (slugParam !== correctSlug) {
+              navigate(`/educator/${correctSlug}`, { 
+                state: { id: profileId },
+                replace: true 
+              });
+              return;
+            }
+          }
+
+          setProfile(data);
+        } 
+        // Otherwise, try to find the educator by slug
+        else if (slugParam) {
+          console.log('Fetching profile by slug:', slugParam);
+          
+          // First, try a direct slug match by converting the slug format back to possible name patterns
+          const slugWithSpaces = slugParam.replace(/-/g, ' ');
+          
+          const { data: profiles, error: slugError } = await supabase
+            .from('educator_profiles')
+            .select('*')
+            .or(`name.ilike.%${slugWithSpaces}%,description.ilike.%${slugWithSpaces}%`);
+
+          if (slugError) {
+            console.error('Error searching profiles by slug:', slugError);
+            throw slugError;
+          }
+
+          if (!profiles || profiles.length === 0) {
+            setError("Profile not found");
+            setLoading(false);
+            return;
+          }
+
+          // Find the profile whose slug would match the provided slug
+          const matchedProfile = profiles.find(p => 
+            createSlug(p.name) === slugParam
+          );
+
+          // If no exact match, use the first result that's closest to the slug
+          const profileToUse = matchedProfile || profiles[0];
+          
+          // If we found a profile but its slug doesn't match the URL, redirect to the correct URL
+          if (profileToUse && createSlug(profileToUse.name) !== slugParam) {
+            navigate(`/educator/${createSlug(profileToUse.name)}`, { 
+              state: { id: profileToUse.id },
+              replace: true 
+            });
+            return;
+          }
+
+          setProfile(profileToUse);
         }
-
-        setProfile(slugData);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error: fetchError } = await supabase
-        .from('educator_profiles')
-        .select('*')
-        .eq('id', profileId)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error('Error fetching profile:', fetchError);
+      } catch (err) {
+        console.error('Error in fetchProfile:', err);
         setError("Failed to load educator profile");
-        toast.error('Failed to load educator profile');
+        toast.error("Failed to load educator profile");
+      } finally {
         setLoading(false);
-        return;
       }
-
-      if (!data) {
-        setError("Profile not found");
-        setLoading(false);
-        return;
-      }
-
-      if (data.name) {
-        const correctSlug = createSlug(data.name);
-        if (!slug || slug !== correctSlug) {
-          navigate(`/educator/${correctSlug}`, { 
-            state: { id: profileId },
-            replace: true 
-          });
-          return;
-        }
-      }
-
-      setProfile(data);
-      setError(null);
-      setLoading(false);
     };
 
     fetchProfile();
-  }, [profileId, slug, navigate]);
+  }, [profileId, slugParam, navigate]);
 
   if (loading) {
     return (
