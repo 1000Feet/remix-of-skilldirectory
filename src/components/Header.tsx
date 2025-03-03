@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +29,6 @@ export const Header = ({ searchQuery, onSearchChange }: HeaderProps = {}) => {
       if (!user) return;
       
       try {
-        // Use the proper return type for the query
         const { data, error } = await supabase
           .from('admin_users')
           .select('*')
@@ -62,7 +60,6 @@ export const Header = ({ searchQuery, onSearchChange }: HeaderProps = {}) => {
     }
   };
 
-  // Check if user exists and has user_metadata
   const isEducator = user?.user_metadata?.user_type === 'educator';
   const isStudent = user?.user_metadata?.user_type === 'student';
 

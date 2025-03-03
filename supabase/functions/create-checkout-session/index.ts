@@ -27,8 +27,11 @@ const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 serve(async (req) => {
+  console.log('Function called with method:', req.method)
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS request')
     return new Response(null, {
       status: 204,
       headers: corsHeaders,
@@ -37,7 +40,10 @@ serve(async (req) => {
 
   try {
     // Get the request body
-    const { priceId, userId, pendingId, customerEmail } = await req.json()
+    const requestData = await req.json()
+    const { priceId, userId, pendingId, customerEmail } = requestData
+    
+    console.log('Request data:', { priceId, userId, pendingId, customerEmail })
 
     if (!priceId || !userId || !pendingId || !customerEmail) {
       return new Response(
@@ -61,6 +67,8 @@ serve(async (req) => {
       )
     }
 
+    console.log('Price retrieved from Stripe:', price.id)
+
     // Create a checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -81,13 +89,17 @@ serve(async (req) => {
       },
     })
 
+    console.log('Checkout session created:', session.id)
+
     // Update the pending subscription with the session ID
-    await supabase
+    const { error: updateError } = await supabase
       .from('pending_subscriptions')
       .update({ session_id: session.id })
       .eq('id', pendingId)
 
-    console.log('Checkout session created:', session.id)
+    if (updateError) {
+      console.error('Error updating pending subscription:', updateError)
+    }
 
     // Return the session URL
     return new Response(

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,9 +35,8 @@ const SubscriptionPlans = () => {
       }
 
       // Create a pending subscription
-      // Use type casting with "as any" to work around TypeScript issues
-      const { data: pendingSubscription, error: pendingError } = await (supabase
-        .from('pending_subscriptions') as any)
+      const { data: pendingSubscription, error: pendingError } = await supabase
+        .from('pending_subscriptions')
         .insert({
           user_id: user.id,
           email: user.email,
@@ -60,8 +58,15 @@ const SubscriptionPlans = () => {
         return;
       }
 
-      // For paid plans, call Supabase Edge Function
+      // For paid plans, call Supabase Edge Function with explicit error handling
       try {
+        console.log('Calling Supabase function with data:', {
+          priceId: plan.stripe_price_id,
+          userId: user.id,
+          pendingId: pendingSubscription.id,
+          customerEmail: user.email
+        });
+        
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
           body: {
             priceId: plan.stripe_price_id,
@@ -90,7 +95,7 @@ const SubscriptionPlans = () => {
       }
     } catch (error) {
       console.error('Error creating subscription:', error);
-      toast.error('Failed to process subscription');
+      toast.error('Failed to process subscription. Please try again later.');
       setSelectedPlan(null);
     } finally {
       setProcessing(false);
@@ -102,9 +107,8 @@ const SubscriptionPlans = () => {
       if (!user) return;
 
       // Create educator subscription record
-      // Use type casting with "as any" to work around TypeScript issues
-      const { error: subscriptionError } = await (supabase
-        .from('educator_subscriptions') as any)
+      const { error: subscriptionError } = await supabase
+        .from('educator_subscriptions')
         .insert({
           user_id: user.id,
           plan_id: planId,
