@@ -12,10 +12,8 @@ port = 54322
 [studio]
 port = 54323
 
-[[functions]]
-name = "create-checkout-session"
+[functions.create-checkout-session]
 verify_jwt = false
 
-[[functions]]
-name = "stripe-webhook"
+[functions.stripe-webhook]
 verify_jwt = false
