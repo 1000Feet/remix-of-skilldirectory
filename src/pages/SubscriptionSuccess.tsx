@@ -40,8 +40,18 @@ const SubscriptionSuccess = () => {
           throw new Error('No session ID found');
         }
 
+        // Update pending subscription status
+        const { error: updatePendingError } = await supabase
+          .from('pending_subscriptions')
+          .update({ status: 'completed', session_id: sessionId })
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
+
+        if (updatePendingError) {
+          console.error('Error updating pending subscription:', updatePendingError);
+        }
+
         // Check the subscription status
-        // Use type casting with "as any" to work around TypeScript issues
         const { data, error } = await (supabase
           .from('educator_subscriptions') as any)
           .select('*')
@@ -51,10 +61,12 @@ const SubscriptionSuccess = () => {
           .single();
 
         if (error) {
-          throw error;
+          // If no subscription exists yet, it might be processing
+          console.log('Waiting for subscription to be processed...');
+          // Don't throw here, as the webhook might not have processed yet
+        } else {
+          setSubscription(data);
         }
-
-        setSubscription(data);
 
         // Small delay to ensure the profile is created in the database
         setTimeout(() => {

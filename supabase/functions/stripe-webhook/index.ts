@@ -1,19 +1,15 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@12.1.1?target=deno";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.23.0";
+// Follow ES module syntax for Deno
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import Stripe from 'https://esm.sh/stripe@12.1.1?dts';
 
-// Initialize Stripe
+// Initialize Stripe with the secret key from environment variable
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-// Initialize Supabase client
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
+// CORS headers for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -27,263 +23,429 @@ serve(async (req) => {
 
   try {
     const signature = req.headers.get('stripe-signature');
-    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-    
-    if (!signature || !webhookSecret) {
-      return new Response(
-        JSON.stringify({ error: 'Missing stripe signature or webhook secret' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!signature) {
+      console.error('Missing Stripe signature');
+      return new Response(JSON.stringify({ error: 'Missing Stripe signature' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
+    // Get webhook secret from environment variables
+    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      console.error('Missing webhook secret');
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get request body as text for the verification
     const body = await req.text();
-    
-    // Verify webhook signature
     let event;
+
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      event = stripe.webhooks.constructEvent(
+        body,
+        signature,
+        webhookSecret
+      );
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
-      return new Response(
-        JSON.stringify({ error: `Webhook signature verification failed: ${err.message}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: `Webhook Error: ${err.message}` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    console.log(`Received webhook event: ${event.type}`);
+    console.log(`Webhook event received: ${event.type}`);
 
-    // Handle specific event types
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+
+    // Create a Supabase client
+    const createClient = (supabaseUrl, supabaseKey) => {
+      return {
+        from: (table) => ({
+          select: (columns = '*') => {
+            return fetch(`${supabaseUrl}/rest/v1/${table}?select=${columns}`, {
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+              },
+            }).then(res => res.json());
+          },
+          insert: (values, options = {}) => {
+            const query = options.upsert ? '?on_conflict=user_id' : '';
+            return fetch(`${supabaseUrl}/rest/v1/${table}${query}`, {
+              method: 'POST',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': options.returning ? 'return=representation' : 'return=minimal',
+              },
+              body: JSON.stringify(values),
+            }).then(res => res.json());
+          },
+          update: (values) => ({
+            eq: (column, value) => {
+              return fetch(`${supabaseUrl}/rest/v1/${table}?${column}=eq.${value}`, {
+                method: 'PATCH',
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': `Bearer ${supabaseKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(values),
+              }).then(res => res.json());
+            },
+            match: (criteria) => {
+              let query = '';
+              Object.entries(criteria).forEach(([key, value]) => {
+                query += `${key}=eq.${value}&`;
+              });
+              return fetch(`${supabaseUrl}/rest/v1/${table}?${query}`, {
+                method: 'PATCH',
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': `Bearer ${supabaseKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(values),
+              }).then(res => res.json());
+            }
+          }),
+          delete: () => ({
+            eq: (column, value) => {
+              return fetch(`${supabaseUrl}/rest/v1/${table}?${column}=eq.${value}`, {
+                method: 'DELETE',
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': `Bearer ${supabaseKey}`,
+                },
+              }).then(res => res.json());
+            },
+          }),
+        }),
+      };
+    };
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Process different webhook events
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
+        console.log('Checkout session completed:', session);
         
-        // Extract customer and payment details
-        const { userId, pendingId } = session.metadata;
-        const customerId = session.customer;
-        const subscriptionId = session.subscription;
+        // Get the pending subscription from the metadata
+        const pendingId = session.metadata.pendingId;
+        const userId = session.client_reference_id;
         
-        if (!userId || !pendingId || !customerId || !subscriptionId) {
-          throw new Error('Required metadata missing from checkout session');
+        if (!pendingId || !userId) {
+          throw new Error('Missing pendingId or userId in session metadata');
         }
-        
-        console.log(`Processing successful checkout for user ${userId}, subscription ${subscriptionId}`);
-        
-        // Get subscription details to determine the plan
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        const priceId = subscription.items.data[0].price.id;
-        
-        // Get plan details from database
-        const { data: planData, error: planError } = await supabase
-          .from('membership_plans')
-          .select('id, name')
-          .eq('stripe_price_id', priceId)
-          .single();
-          
-        if (planError || !planData) {
-          throw new Error(`Failed to find plan with stripe_price_id ${priceId}: ${planError?.message}`);
-        }
-        
-        // Update pending subscription
-        const { error: pendingError } = await supabase
-          .from('pending_subscriptions')
-          .update({
-            status: 'completed',
-            stripe_customer_id: customerId,
-            stripe_subscription_id: subscriptionId
-          })
-          .eq('id', pendingId);
 
-        if (pendingError) {
-          throw new Error(`Failed to update pending subscription: ${pendingError.message}`);
+        // Get pending subscription details
+        const pendingResponse = await fetch(
+          `${supabaseUrl}/rest/v1/pending_subscriptions?id=eq.${pendingId}&select=*`,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+          }
+        );
+        
+        const pendingSubscriptions = await pendingResponse.json();
+        if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
+          throw new Error(`No pending subscription found with ID: ${pendingId}`);
         }
         
-        // Check if profile already exists
-        const { data: existingProfile } = await supabase
-          .from('educator_profiles')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
+        const pendingSubscription = pendingSubscriptions[0];
+        console.log('Found pending subscription:', pendingSubscription);
+
+        // Get subscription details from Stripe
+        const subscriptionId = session.subscription;
+        if (!subscriptionId) {
+          throw new Error('No subscription ID in checkout session');
+        }
         
-        // Create or update educator profile
-        if (!existingProfile) {
-          // Create new profile
-          const { error: profileError } = await supabase
-            .from('educator_profiles')
-            .insert({
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        console.log('Retrieved Stripe subscription:', subscription);
+        
+        // Get price details to determine plan
+        const priceId = subscription.items.data[0].price.id;
+        const planResponse = await fetch(
+          `${supabaseUrl}/rest/v1/membership_plans?stripe_price_id=eq.${priceId}&select=*`,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+          }
+        );
+        
+        const plans = await planResponse.json();
+        if (!plans || plans.length === 0) {
+          throw new Error(`No plan found for price ID: ${priceId}`);
+        }
+        
+        const plan = plans[0];
+        console.log('Found matching plan:', plan);
+        
+        // Update pending subscription status
+        await fetch(
+          `${supabaseUrl}/rest/v1/pending_subscriptions?id=eq.${pendingId}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              status: 'completed',
+              customer_id: session.customer,
+              subscription_id: subscriptionId,
+              session_id: session.id
+            }),
+          }
+        );
+        
+        // Create educator subscription record
+        await fetch(
+          `${supabaseUrl}/rest/v1/educator_subscriptions`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal',
+            },
+            body: JSON.stringify({
               user_id: userId,
-              subscription_tier: planData.name.toLowerCase(),
-              subscription_status: 'active',
-              stripe_customer_id: customerId,
+              plan_id: plan.id,
               stripe_subscription_id: subscriptionId,
-              name: ''
-            });
-            
-          if (profileError) {
-            throw new Error(`Failed to create educator profile: ${profileError.message}`);
+              stripe_customer_id: session.customer,
+              status: 'active',
+              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+            }),
           }
-        } else {
+        );
+        
+        // Now create or update the educator profile
+        // First check if profile exists
+        const profileResponse = await fetch(
+          `${supabaseUrl}/rest/v1/educator_profiles?user_id=eq.${userId}&select=*`,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+          }
+        );
+        
+        const profiles = await profileResponse.json();
+        const profileExists = profiles && profiles.length > 0;
+        
+        const profileData = {
+          subscription_tier: plan.name.toLowerCase().replace(/\s+/g, '_'),
+          subscription_status: 'active',
+          stripe_subscription_id: subscriptionId,
+          stripe_customer_id: session.customer
+        };
+        
+        if (profileExists) {
           // Update existing profile
-          const { error: updateError } = await supabase
-            .from('educator_profiles')
-            .update({
-              subscription_tier: planData.name.toLowerCase(),
-              subscription_status: 'active',
-              stripe_customer_id: customerId,
-              stripe_subscription_id: subscriptionId
-            })
-            .eq('user_id', userId);
-            
-          if (updateError) {
-            throw new Error(`Failed to update educator profile: ${updateError.message}`);
-          }
-        }
-        
-        // Create subscription record
-        const { error: subscriptionError } = await supabase
-          .from('educator_subscriptions')
-          .insert({
+          await fetch(
+            `${supabaseUrl}/rest/v1/educator_profiles?user_id=eq.${userId}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(profileData),
+            }
+          );
+        } else {
+          // Create a new profile
+          // Get user email from pending subscription
+          const userData = {
             user_id: userId,
-            plan_id: planData.id,
-            status: 'active',
-            stripe_subscription_id: subscriptionId,
-            stripe_customer_id: customerId,
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
-          });
+            email: pendingSubscription.email,
+            name: '', // Required field with empty string as default
+            ...profileData
+          };
           
-        if (subscriptionError) {
-          throw new Error(`Failed to create subscription record: ${subscriptionError.message}`);
+          await fetch(
+            `${supabaseUrl}/rest/v1/educator_profiles`,
+            {
+              method: 'POST',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(userData),
+            }
+          );
         }
         
-        console.log(`Successfully processed checkout for user ${userId}`);
         break;
       }
       
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object;
-        const subscriptionId = invoice.subscription;
+        console.log('Invoice payment succeeded:', invoice);
         
-        if (!subscriptionId) break;
-        
-        console.log(`Processing successful payment for subscription ${subscriptionId}`);
-        
-        // Get subscription details
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        
-        // Update subscription period in database
-        const { error: updateError } = await supabase
-          .from('educator_subscriptions')
-          .update({
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('stripe_subscription_id', subscriptionId);
+        // Only process subscription invoices
+        if (invoice.subscription) {
+          const subscriptionId = invoice.subscription;
           
-        if (updateError) {
-          throw new Error(`Failed to update subscription period: ${updateError.message}`);
+          // Update subscription status
+          await fetch(
+            `${supabaseUrl}/rest/v1/educator_subscriptions?stripe_subscription_id=eq.${subscriptionId}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                status: 'active',
+                // Update period dates if available
+                ...(invoice.lines.data[0]?.period && {
+                  current_period_start: new Date(invoice.lines.data[0].period.start * 1000).toISOString(),
+                  current_period_end: new Date(invoice.lines.data[0].period.end * 1000).toISOString()
+                })
+              }),
+            }
+          );
+          
+          // Also update the educator profile
+          await fetch(
+            `${supabaseUrl}/rest/v1/educator_profiles?stripe_subscription_id=eq.${subscriptionId}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                subscription_status: 'active'
+              }),
+            }
+          );
         }
-        
-        console.log(`Successfully updated subscription period for ${subscriptionId}`);
         break;
       }
       
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
-        const subscriptionId = subscription.id;
-        const status = subscription.status;
+        console.log('Subscription updated:', subscription);
         
-        console.log(`Processing subscription update for ${subscriptionId}: ${status}`);
-        
-        // Update subscription status in database
-        const { error: updateError } = await supabase
-          .from('educator_subscriptions')
-          .update({
-            status: status,
-            updated_at: new Date().toISOString()
-          })
-          .eq('stripe_subscription_id', subscriptionId);
-          
-        if (updateError) {
-          throw new Error(`Failed to update subscription status: ${updateError.message}`);
-        }
-        
-        // Also update the educator profile subscription status
-        const { data: subscriptionData } = await supabase
-          .from('educator_subscriptions')
-          .select('user_id')
-          .eq('stripe_subscription_id', subscriptionId)
-          .single();
-          
-        if (subscriptionData) {
-          const { error: profileError } = await supabase
-            .from('educator_profiles')
-            .update({
-              subscription_status: status
-            })
-            .eq('user_id', subscriptionData.user_id);
-            
-          if (profileError) {
-            console.error(`Failed to update educator profile status: ${profileError.message}`);
+        // Update subscription record
+        await fetch(
+          `${supabaseUrl}/rest/v1/educator_subscriptions?stripe_subscription_id=eq.${subscription.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              status: subscription.status,
+              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+            }),
           }
-        }
+        );
         
-        console.log(`Successfully updated subscription ${subscriptionId} status to ${status}`);
+        // Update educator profile
+        await fetch(
+          `${supabaseUrl}/rest/v1/educator_profiles?stripe_subscription_id=eq.${subscription.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              subscription_status: subscription.status
+            }),
+          }
+        );
         break;
       }
       
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        const subscriptionId = subscription.id;
+        console.log('Subscription cancelled:', subscription);
         
-        console.log(`Processing subscription cancellation for ${subscriptionId}`);
-        
-        // Update subscription status in database
-        const { error: updateError } = await supabase
-          .from('educator_subscriptions')
-          .update({
-            status: 'canceled',
-            updated_at: new Date().toISOString()
-          })
-          .eq('stripe_subscription_id', subscriptionId);
-          
-        if (updateError) {
-          throw new Error(`Failed to update subscription status to canceled: ${updateError.message}`);
-        }
-        
-        // Also update the educator profile subscription status
-        const { data: subscriptionData } = await supabase
-          .from('educator_subscriptions')
-          .select('user_id')
-          .eq('stripe_subscription_id', subscriptionId)
-          .single();
-          
-        if (subscriptionData) {
-          const { error: profileError } = await supabase
-            .from('educator_profiles')
-            .update({
-              subscription_status: 'canceled'
-            })
-            .eq('user_id', subscriptionData.user_id);
-            
-          if (profileError) {
-            console.error(`Failed to update educator profile status: ${profileError.message}`);
+        // Update subscription record
+        await fetch(
+          `${supabaseUrl}/rest/v1/educator_subscriptions?stripe_subscription_id=eq.${subscription.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              status: 'canceled'
+            }),
           }
-        }
+        );
         
-        console.log(`Successfully marked subscription ${subscriptionId} as canceled`);
+        // Update educator profile
+        await fetch(
+          `${supabaseUrl}/rest/v1/educator_profiles?stripe_subscription_id=eq.${subscription.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              subscription_status: 'canceled'
+            }),
+          }
+        );
         break;
       }
     }
 
     return new Response(JSON.stringify({ received: true }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (error) {
     console.error(`Webhook error: ${error.message}`);
     return new Response(
-      JSON.stringify({ error: error.message || 'An unexpected error occurred' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: error.message || 'Unknown error' }),
+      {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
     );
   }
 });
