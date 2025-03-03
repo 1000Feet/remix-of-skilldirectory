@@ -7,7 +7,6 @@ import Stripe from "https://esm.sh/stripe@12.1.1?target=deno";
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
 });
 
 const corsHeaders = {
@@ -37,12 +36,35 @@ serve(async (req) => {
       throw new Error(`Invalid price ID format: ${priceId}. Must start with "price_"`);
     }
 
-    // Create a new checkout session
+    // Get the plan details from Supabase
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const { data: planData, error: planError } = await supabase
+      .from('membership_plans')
+      .select('name, price')
+      .eq('stripe_price_id', priceId)
+      .single();
+      
+    if (planError) {
+      console.error('Error fetching plan details:', planError);
+    }
+    
+    // Use the correct plan name from the database if available
+    const planName = planData?.name || 'Subscription';
+    const planDisplayName = `${planName} - $${planData?.price || '0'}/month`;
+    
+    console.log('Creating checkout with plan name:', planDisplayName);
+
+    // Create a new checkout session with the correct plan name
     const session = await stripe.checkout.sessions.create({
       line_items: [
         {
           price: priceId,
           quantity: 1,
+          description: planDisplayName, // Add custom description
         },
       ],
       mode: 'subscription',
@@ -52,7 +74,8 @@ serve(async (req) => {
       customer_email: customerEmail,
       metadata: {
         userId: userId,
-        pendingId: pendingId
+        pendingId: pendingId,
+        planName: planName, // Include plan name in metadata
       },
     });
 
@@ -97,3 +120,6 @@ serve(async (req) => {
     );
   }
 });
+
+// Need to import createClient function
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
