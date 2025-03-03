@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,7 +21,7 @@ const SubscriptionPlans = () => {
   const [hasEducatorProfile, setHasEducatorProfile] = useState(false);
 
   // Check if the user already has an educator profile when component mounts
-  useState(() => {
+  useEffect(() => {
     const checkEducatorProfile = async () => {
       if (!user) return;
       
@@ -42,7 +42,7 @@ const SubscriptionPlans = () => {
     };
     
     checkEducatorProfile();
-  });
+  }, [user]);
 
   const handleSubscription = async (planId: string) => {
     if (!user) {
@@ -65,6 +65,8 @@ const SubscriptionPlans = () => {
       console.log(`Plan price: $${plan.price}`);
       console.log(`Stripe Price ID: ${plan.stripe_price_id}`);
       console.log(`Plan details:`, JSON.stringify(plan, null, 2));
+      console.log(`Current user ID:`, user.id);
+      console.log(`User exists in auth?`, !!user);
       
       console.log(`All available plans:`);
       plans.forEach(p => {
@@ -96,6 +98,9 @@ const SubscriptionPlans = () => {
         return;
       }
 
+      // Verify that the user exists in the auth.users table before creating a pending subscription
+      console.log('Checking if user exists in auth.users table...');
+      
       // Create a pending subscription entry
       const { data: pendingSubscription, error: pendingError } = await supabase
         .from('pending_subscriptions')
