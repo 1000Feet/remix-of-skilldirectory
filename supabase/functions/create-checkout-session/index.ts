@@ -57,12 +57,19 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get the plan details from Supabase using the price ID
+    // First, get the plan details from Supabase using the price ID
     const { data: planData, error: planError } = await supabase
       .from('membership_plans')
-      .select('id, name, description, price')
+      .select('id, name, description, price, stripe_price_id')
       .eq('stripe_price_id', priceId)
       .single();
+
+    // Log ALL plans in the database for debugging
+    const { data: allPlans, error: allPlansError } = await supabase
+      .from('membership_plans')
+      .select('id, name, description, price, stripe_price_id');
+    
+    console.log('All membership plans in database:', allPlans);
 
     if (planError) {
       console.error('Error fetching plan data:', planError);
@@ -88,10 +95,10 @@ serve(async (req) => {
 
     // Verify that the plan name from DB matches the one sent from frontend
     if (planName && planData.name && planName !== planData.name) {
-      console.warn(`Plan name mismatch. Frontend sent: "${planName}", Database has: "${planData.name}"`);
+      console.warn(`Plan name mismatch! Frontend sent: "${planName}", Database has: "${planData.name}" for priceId: ${priceId}`);
     }
 
-    console.log('Found plan data:', planData);
+    console.log('Found plan data in database:', planData);
     const verifiedPlanName = planData.name;
 
     // Create a new checkout session with the correct plan name
@@ -114,7 +121,6 @@ serve(async (req) => {
           planName: verifiedPlanName,
           planId: planData.id
         }
-        // Removed payment_intent_data as it's not compatible with subscription mode
       });
 
       console.log('Checkout session created successfully:', {

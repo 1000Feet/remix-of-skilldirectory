@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -76,22 +75,18 @@ const SubscriptionPlans = () => {
 
       // For paid plans, call Supabase Edge Function with explicit error handling
       try {
-        console.log('Calling Supabase function with data:', {
+        const requestData = {
           priceId: plan.stripe_price_id,
           userId: user.id,
           pendingId: pendingSubscription.id,
           customerEmail: user.email,
           planName: plan.name // Include plan name for extra validation
-        });
+        };
+        
+        console.log('Calling Supabase function with data:', requestData);
         
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-          body: {
-            priceId: plan.stripe_price_id,
-            userId: user.id,
-            pendingId: pendingSubscription.id,
-            customerEmail: user.email,
-            planName: plan.name // Pass plan name to the function
-          },
+          body: requestData,
         });
 
         if (error) {
