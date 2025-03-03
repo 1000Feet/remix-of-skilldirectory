@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,6 +46,22 @@ const SubscriptionPlans = () => {
       });
       console.log(`==============================================`);
 
+      // First, check if the user already has an educator profile
+      const { data: existingProfile } = await supabase
+        .from('educator_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingProfile) {
+        toast.error('You already have an active educator profile');
+        setProcessing(false);
+        setSelectedPlan(null);
+        navigate('/dashboard');
+        return;
+      }
+
+      // Create a pending subscription entry
       const { data: pendingSubscription, error: pendingError } = await supabase
         .from('pending_subscriptions')
         .insert({
@@ -143,36 +160,7 @@ const SubscriptionPlans = () => {
     try {
       if (!user) return;
 
-      const { data: existingProfile } = await supabase
-        .from('educator_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!existingProfile) {
-        const { error: profileError } = await supabase
-          .from('educator_profiles')
-          .insert({
-            user_id: user.id,
-            email: user.email,
-            name: '',
-            subscription_tier: 'basic',
-            subscription_status: 'active'
-          });
-
-        if (profileError) throw profileError;
-      } else {
-        const { error: updateError } = await supabase
-          .from('educator_profiles')
-          .update({
-            subscription_tier: 'basic',
-            subscription_status: 'active'
-          })
-          .eq('user_id', user.id);
-
-        if (updateError) throw updateError;
-      }
-
+      // First, create a subscription record
       const { error: subscriptionError } = await supabase
         .from('educator_subscriptions')
         .insert({
@@ -184,6 +172,19 @@ const SubscriptionPlans = () => {
         });
 
       if (subscriptionError) throw subscriptionError;
+
+      // Then create the educator profile
+      const { error: profileError } = await supabase
+        .from('educator_profiles')
+        .insert({
+          user_id: user.id,
+          email: user.email,
+          name: '',
+          subscription_tier: 'basic',
+          subscription_status: 'active'
+        });
+
+      if (profileError) throw profileError;
 
       toast.success('Successfully subscribed to Basic plan');
       navigate('/dashboard');

@@ -51,6 +51,68 @@ const SubscriptionSuccess = () => {
           console.error('Error updating pending subscription:', updatePendingError);
         }
 
+        // Check if educator profile already exists
+        const { data: existingProfile, error: profileError } = await supabase
+          .from('educator_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error('Error checking for existing profile:', profileError);
+        }
+
+        // Create educator profile if it doesn't exist
+        if (!existingProfile) {
+          console.log('Creating educator profile for user:', user.id);
+          
+          // Fetch subscription data to get the plan details
+          const { data: subscriptionData, error: subscriptionError } = await supabase
+            .from('educator_subscriptions')
+            .select('*, membership_plans:plan_id(*)')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (subscriptionError) {
+            console.error('Error fetching subscription data:', subscriptionError);
+          }
+          
+          // Determine subscription tier from the plan name
+          let subscriptionTier = 'basic';
+          if (subscriptionData?.membership_plans?.name) {
+            const planName = subscriptionData.membership_plans.name.toLowerCase();
+            if (planName.includes('premium')) {
+              subscriptionTier = 'premium';
+            } else if (planName.includes('professional')) {
+              subscriptionTier = 'professional';
+            }
+          }
+          
+          // Create the educator profile
+          const { error: createProfileError } = await supabase
+            .from('educator_profiles')
+            .insert({
+              user_id: user.id,
+              email: user.email,
+              name: '',
+              subscription_tier: subscriptionTier,
+              subscription_status: 'active',
+              stripe_subscription_id: subscriptionData?.stripe_subscription_id || null,
+              stripe_customer_id: subscriptionData?.stripe_customer_id || null
+            });
+
+          if (createProfileError) {
+            console.error('Error creating educator profile:', createProfileError);
+            toast.error('Failed to create your profile. Please contact support.');
+          } else {
+            console.log('Successfully created educator profile');
+          }
+        } else {
+          console.log('Educator profile already exists, skipping creation');
+        }
+
         // Check the subscription status
         const { data, error } = await (supabase
           .from('educator_subscriptions') as any)
@@ -83,7 +145,7 @@ const SubscriptionSuccess = () => {
   }, [user, location.search, navigate]);
 
   const goToProfile = () => {
-    navigate('/educator/profile');
+    navigate('/dashboard');
   };
 
   return (

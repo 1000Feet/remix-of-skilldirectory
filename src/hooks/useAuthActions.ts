@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserType } from '@/lib/auth-types';
@@ -27,7 +28,7 @@ export const useAuthActions = () => {
       if (!authData.user) throw new Error('Signup failed - no user data returned');
 
       // For student users, create the profile immediately
-      // For educators, the profile will be created after subscription
+      // For educators, the profile will be created after subscription payment
       if (userType === 'student') {
         // Check if the profile already exists
         const { data: existingProfile } = await supabase
@@ -44,6 +45,7 @@ export const useAuthActions = () => {
           });
         }
       }
+      // We no longer create educator profiles here - they'll be created after payment
 
       toast.success('Your account has been created successfully!');
       
