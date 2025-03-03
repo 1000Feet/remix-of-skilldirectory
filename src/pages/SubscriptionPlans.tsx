@@ -97,9 +97,19 @@ const SubscriptionPlans = () => {
           throw new Error(error.message || 'Failed to create checkout session');
         }
 
-        if (!data || !data.sessionUrl) {
+        if (!data) {
           console.error('Invalid response from checkout session creation:', data);
-          throw new Error('Invalid response from checkout session creation');
+          throw new Error('Empty response from checkout session creation');
+        }
+
+        if (!data.sessionUrl) {
+          console.error('Missing session URL in response:', data);
+          
+          if (data.error) {
+            throw new Error(`Error from checkout service: ${data.error}`);
+          }
+          
+          throw new Error('Missing session URL in checkout response');
         }
 
         console.log('Checkout session created successfully:', data.sessionId);
