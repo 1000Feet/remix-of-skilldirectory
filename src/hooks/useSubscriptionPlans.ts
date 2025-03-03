@@ -34,17 +34,25 @@ export const useSubscriptionPlans = () => {
 
       console.log('Raw subscription plans data:', data);
 
-      // Parse the features array if it's stored as JSONB
-      const parsedPlans = data.map((plan: any) => ({
-        ...plan,
-        // Ensure price is displayed correctly as a number
-        price: Number(plan.price),
-        features: Array.isArray(plan.features) 
-          ? plan.features 
-          : (typeof plan.features === 'string' 
-              ? JSON.parse(plan.features) 
-              : plan.features || [])
-      }));
+      // Parse the features array if it's stored as JSONB and ensure price is a number
+      const parsedPlans = data.map((plan: any) => {
+        // Ensure price is a number
+        const price = typeof plan.price === 'string' 
+          ? parseFloat(plan.price) 
+          : Number(plan.price);
+          
+        console.log(`Plan ${plan.name}: Original price: ${plan.price}, Parsed price: ${price}`);
+        
+        return {
+          ...plan,
+          price: price,
+          features: Array.isArray(plan.features) 
+            ? plan.features 
+            : (typeof plan.features === 'string' 
+                ? JSON.parse(plan.features) 
+                : plan.features || [])
+        };
+      });
 
       console.log('Parsed subscription plans:', parsedPlans);
       setPlans(parsedPlans || []);

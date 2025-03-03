@@ -40,10 +40,15 @@ const SubscriptionSuccess = () => {
           throw new Error('No session ID found');
         }
 
+        console.log(`Checking subscription status for session: ${sessionId}`);
+
         // Update pending subscription status
         const { error: updatePendingError } = await supabase
           .from('pending_subscriptions')
-          .update({ status: 'completed', session_id: sessionId })
+          .update({ 
+            status: 'completed', 
+            session_id: sessionId 
+          })
           .eq('user_id', user.id)
           .eq('status', 'pending');
 
@@ -51,27 +56,61 @@ const SubscriptionSuccess = () => {
           console.error('Error updating pending subscription:', updatePendingError);
         }
 
-        // Check the subscription status
-        const { data, error } = await (supabase
-          .from('educator_subscriptions') as any)
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+        // Wait a bit for webhook to process
+        console.log('Waiting for subscription to be processed by webhook...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
-        if (error) {
-          // If no subscription exists yet, it might be processing
-          console.log('Waiting for subscription to be processed...');
-          // Don't throw here, as the webhook might not have processed yet
-        } else {
-          setSubscription(data);
+        // Check for the subscription record
+        let retries = 0;
+        const maxRetries = 3;
+        let subscriptionData = null;
+        
+        while (retries < maxRetries) {
+          console.log(`Checking for subscription (attempt ${retries + 1}/${maxRetries})...`);
+          
+          const { data, error } = await (supabase
+            .from('educator_subscriptions') as any)
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error checking subscription:', error);
+          } else if (data) {
+            subscriptionData = data;
+            console.log('Found subscription data:', data);
+            break;
+          }
+          
+          retries++;
+          if (retries < maxRetries) {
+            console.log('Waiting before retrying...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
         }
 
-        // Small delay to ensure the profile is created in the database
-        setTimeout(() => {
-          setLoading(false);
-        }, 2000);
+        if (subscriptionData) {
+          setSubscription(subscriptionData);
+        } else {
+          console.log('No subscription found after retries, webhook might still be processing');
+        }
+
+        // Check for educator profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('educator_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error checking educator profile:', profileError);
+        } else {
+          console.log('Found educator profile:', profileData);
+        }
+
+        setLoading(false);
       } catch (error) {
         console.error('Error checking subscription:', error);
         toast.error('Could not verify your subscription');
