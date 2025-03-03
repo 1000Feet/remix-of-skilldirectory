@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,18 +29,23 @@ export const Header = ({ searchQuery, onSearchChange }: HeaderProps = {}) => {
     const checkAdminStatus = async () => {
       if (!user) return;
       
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Error checking admin status:', error);
-        return;
+      try {
+        // Use the proper return type for the query
+        const { data, error } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error checking admin status:', error);
+          return;
+        }
+        
+        setIsAdmin(!!data);
+      } catch (err) {
+        console.error('Error checking admin status:', err);
       }
-      
-      setIsAdmin(!!data);
     };
 
     checkAdminStatus();
@@ -106,7 +112,7 @@ export const Header = ({ searchQuery, onSearchChange }: HeaderProps = {}) => {
                     <DropdownMenuContent align="end" className="w-[200px]">
                       {isEducator && (
                         <DropdownMenuItem asChild>
-                          <Link to="/dashboard" className="w-full cursor-pointer flex items-center gap-2">
+                          <Link to="/educator/dashboard" className="w-full cursor-pointer flex items-center gap-2">
                             <GraduationCap className="h-4 w-4" />
                             Educator Dashboard
                           </Link>

@@ -52,33 +52,42 @@ const SubscriptionPlans = () => {
         throw pendingError;
       }
 
+      console.log('Created pending subscription:', pendingSubscription);
+
       // If it's the free plan, skip Stripe and create educator profile directly
       if (plan.price === 0) {
         await handleFreeSubscription(planId);
         return;
       }
 
-      // For paid plans, call Supabase Edge Function instead of direct API
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: {
-          priceId: plan.stripe_price_id,
-          userId: user.id,
-          pendingId: pendingSubscription.id,
-          customerEmail: user.email
-        },
-      });
+      // For paid plans, call Supabase Edge Function
+      try {
+        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+          body: {
+            priceId: plan.stripe_price_id,
+            userId: user.id,
+            pendingId: pendingSubscription.id,
+            customerEmail: user.email
+          },
+        });
 
-      if (error) {
-        console.error('Error invoking function:', error);
-        throw new Error(error.message || 'Failed to create checkout session');
+        if (error) {
+          console.error('Error invoking function:', error);
+          throw new Error(error.message || 'Failed to create checkout session');
+        }
+
+        console.log('Checkout session created:', data);
+
+        if (!data || !data.sessionUrl) {
+          throw new Error('Invalid response from checkout session creation');
+        }
+
+        // Redirect to Stripe Checkout
+        window.location.href = data.sessionUrl;
+      } catch (fnError) {
+        console.error('Function error:', fnError);
+        throw new Error(`Edge function error: ${fnError.message}`);
       }
-
-      if (!data || !data.sessionUrl) {
-        throw new Error('Invalid response from checkout session creation');
-      }
-
-      // Redirect to Stripe Checkout
-      window.location.href = data.sessionUrl;
     } catch (error) {
       console.error('Error creating subscription:', error);
       toast.error('Failed to process subscription');
