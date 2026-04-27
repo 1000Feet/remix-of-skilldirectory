@@ -1,0 +1,1 @@
+ALTER TABLE public.support_submissions ALTER COLUMN reference_id TYPE text;
