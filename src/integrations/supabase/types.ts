@@ -53,6 +53,48 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_email_log: {
+        Row: {
+          attempt_count: number
+          batch_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          language: string | null
+          prospect_id: string | null
+          recipient_email: string
+          sent_at: string | null
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          batch_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          language?: string | null
+          prospect_id?: string | null
+          recipient_email: string
+          sent_at?: string | null
+          status: string
+          subject?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          batch_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          language?: string | null
+          prospect_id?: string | null
+          recipient_email?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string | null
@@ -185,6 +227,111 @@ export type Database = {
           user_id?: string
           website?: string | null
           youtube_url?: string | null
+        }
+        Relationships: []
+      }
+      email_batches: {
+        Row: {
+          completed_at: string | null
+          consecutive_failures: number
+          cursor: number
+          failed_count: number
+          id: string
+          last_error: string | null
+          last_heartbeat_at: string | null
+          paused_reason: string | null
+          paused_until: string | null
+          prospect_ids: Json
+          sent_count: number
+          skipped_count: number
+          started_at: string
+          status: string
+          stop_requested: boolean
+          total: number
+        }
+        Insert: {
+          completed_at?: string | null
+          consecutive_failures?: number
+          cursor?: number
+          failed_count?: number
+          id?: string
+          last_error?: string | null
+          last_heartbeat_at?: string | null
+          paused_reason?: string | null
+          paused_until?: string | null
+          prospect_ids?: Json
+          sent_count?: number
+          skipped_count?: number
+          started_at?: string
+          status?: string
+          stop_requested?: boolean
+          total?: number
+        }
+        Update: {
+          completed_at?: string | null
+          consecutive_failures?: number
+          cursor?: number
+          failed_count?: number
+          id?: string
+          last_error?: string | null
+          last_heartbeat_at?: string | null
+          paused_reason?: string | null
+          paused_until?: string | null
+          prospect_ids?: Json
+          sent_count?: number
+          skipped_count?: number
+          started_at?: string
+          status?: string
+          stop_requested?: boolean
+          total?: number
+        }
+        Relationships: []
+      }
+      email_send_queue: {
+        Row: {
+          attempts: number
+          batch_id: string
+          campaign_type: string
+          claimed_by: string | null
+          claimed_until: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          max_attempts: number
+          next_attempt_at: string
+          prospect_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          batch_id: string
+          campaign_type?: string
+          claimed_by?: string | null
+          claimed_until?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          prospect_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          batch_id?: string
+          campaign_type?: string
+          claimed_by?: string | null
+          claimed_until?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          prospect_id?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -362,6 +509,66 @@ export type Database = {
           status?: string
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      potential_clients: {
+        Row: {
+          address: string | null
+          category: string | null
+          city: string | null
+          contacted: boolean
+          created_at: string
+          email: string | null
+          google_id: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          rating: number | null
+          reviews_count: number | null
+          source_query: string | null
+          state: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          category?: string | null
+          city?: string | null
+          contacted?: boolean
+          created_at?: string
+          email?: string | null
+          google_id?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          rating?: number | null
+          reviews_count?: number | null
+          source_query?: string | null
+          state?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          category?: string | null
+          city?: string | null
+          contacted?: boolean
+          created_at?: string
+          email?: string | null
+          google_id?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          rating?: number | null
+          reviews_count?: number | null
+          source_query?: string | null
+          state?: string | null
+          updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -586,6 +793,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_email_for_send: {
+        Args: {
+          p_lease_seconds: number
+          p_queue_id: string
+          p_worker_id: string
+        }
+        Returns: {
+          attempts: number
+          batch_id: string
+          campaign_type: string
+          claimed_by: string | null
+          claimed_until: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          max_attempts: number
+          next_attempt_at: string
+          prospect_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "email_send_queue"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_profile_view_count: {
         Args: { educator_id: string }
         Returns: {
@@ -593,6 +828,10 @@ export type Database = {
           total_views: number
           unique_views: number
         }[]
+      }
+      increment_batch_counter: {
+        Args: { p_batch_id: string; p_kind: string; p_table?: string }
+        Returns: undefined
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
     }
