@@ -14,13 +14,587 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admin_users: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      api_keys: {
+        Row: {
+          created_at: string
+          id: number
+          key: string | null
+          value: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          key?: string | null
+          value?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          key?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
+      categories: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          icon_name: string
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          icon_name: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          icon_name?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          deleted_at: string | null
+          id: string
+          read_at: string | null
+          receiver_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          read_at?: string | null
+          receiver_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          read_at?: string | null
+          receiver_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      educator_profiles: {
+        Row: {
+          about_business: string | null
+          address: string | null
+          ai_chatbot: string | null
+          ai_voice_agent: Json | null
+          categories: string[] | null
+          created_at: string
+          description: string | null
+          email: string
+          facebook_url: string | null
+          id: string
+          image: string | null
+          instagram_url: string | null
+          is_active: boolean | null
+          is_featured: boolean | null
+          last_active: string | null
+          name: string
+          phone: string | null
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+          website: string | null
+          youtube_url: string | null
+        }
+        Insert: {
+          about_business?: string | null
+          address?: string | null
+          ai_chatbot?: string | null
+          ai_voice_agent?: Json | null
+          categories?: string[] | null
+          created_at?: string
+          description?: string | null
+          email: string
+          facebook_url?: string | null
+          id?: string
+          image?: string | null
+          instagram_url?: string | null
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          last_active?: string | null
+          name: string
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+          youtube_url?: string | null
+        }
+        Update: {
+          about_business?: string | null
+          address?: string | null
+          ai_chatbot?: string | null
+          ai_voice_agent?: Json | null
+          categories?: string[] | null
+          created_at?: string
+          description?: string | null
+          email?: string
+          facebook_url?: string | null
+          id?: string
+          image?: string | null
+          instagram_url?: string | null
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          last_active?: string | null
+          name?: string
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+          youtube_url?: string | null
+        }
+        Relationships: []
+      }
+      environment_variables: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_encrypted: boolean | null
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_encrypted?: boolean | null
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_encrypted?: boolean | null
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      field_permissions: {
+        Row: {
+          created_at: string
+          id: number
+          permissions: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          permissions?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          permissions?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lesson_requests: {
+        Row: {
+          created_at: string
+          educator_id: string
+          educator_profile_id: string
+          id: string
+          message: string | null
+          message_from_educator: string | null
+          proposed_date: string
+          proposed_time: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          educator_id: string
+          educator_profile_id: string
+          id?: string
+          message?: string | null
+          message_from_educator?: string | null
+          proposed_date: string
+          proposed_time?: string | null
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          educator_id?: string
+          educator_profile_id?: string
+          id?: string
+          message?: string | null
+          message_from_educator?: string | null
+          proposed_date?: string
+          proposed_time?: string | null
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      membership_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          membership_id: string
+          metadata: Json | null
+          payment_date: string
+          payment_method: string
+          status: string
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          membership_id: string
+          metadata?: Json | null
+          payment_date?: string
+          payment_method: string
+          status: string
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          membership_id?: string
+          metadata?: Json | null
+          payment_date?: string
+          payment_method?: string
+          status?: string
+          transaction_id?: string | null
+        }
+        Relationships: []
+      }
+      memberships: {
+        Row: {
+          auto_renew: boolean
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          educator_id: string
+          end_date: string | null
+          id: string
+          metadata: Json | null
+          start_date: string
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          auto_renew?: boolean
+          created_at?: string
+          current_period_end: string
+          current_period_start?: string
+          educator_id: string
+          end_date?: string | null
+          id?: string
+          metadata?: Json | null
+          start_date?: string
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          auto_renew?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          educator_id?: string
+          end_date?: string | null
+          id?: string
+          metadata?: Json | null
+          start_date?: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profile_views: {
+        Row: {
+          educator_profile_id: string
+          id: string
+          ip_address: string | null
+          viewed_at: string | null
+          viewer_id: string | null
+        }
+        Insert: {
+          educator_profile_id: string
+          id?: string
+          ip_address?: string | null
+          viewed_at?: string | null
+          viewer_id?: string | null
+        }
+        Update: {
+          educator_profile_id?: string
+          id?: string
+          ip_address?: string | null
+          viewed_at?: string | null
+          viewer_id?: string | null
+        }
+        Relationships: []
+      }
+      review_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          reaction_type: string
+          review_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reaction_type: string
+          review_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reaction_type?: string
+          review_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      review_replies: {
+        Row: {
+          created_at: string
+          id: string
+          reply_text: string
+          review_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reply_text: string
+          review_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reply_text?: string
+          review_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          created_at: string | null
+          educator_id: string
+          id: string
+          rating: number
+          review_text: string | null
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          educator_id: string
+          id?: string
+          rating: number
+          review_text?: string | null
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          educator_id?: string
+          id?: string
+          rating?: number
+          review_text?: string | null
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      stripe_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          customer_email: string
+          customer_name: string
+          id: string
+          metadata: Json | null
+          payment_method: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          customer_email: string
+          customer_name: string
+          id: string
+          metadata?: Json | null
+          payment_method: string
+          status: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          customer_email?: string
+          customer_name?: string
+          id?: string
+          metadata?: Json | null
+          payment_method?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      student_profiles: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string
+          favorites: Json | null
+          id: string
+          is_active: boolean | null
+          name: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email: string
+          favorites?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string
+          favorites?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      support_submissions: {
+        Row: {
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          issue_type: string
+          last_name: string
+          message: string
+          reference_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          first_name: string
+          id?: string
+          issue_type: string
+          last_name: string
+          message: string
+          reference_id?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          issue_type?: string
+          last_name?: string
+          message?: string
+          reference_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_profile_view_count: {
+        Args: { educator_id: string }
+        Returns: {
+          last_24h_views: number
+          total_views: number
+          unique_views: number
+        }[]
+      }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
