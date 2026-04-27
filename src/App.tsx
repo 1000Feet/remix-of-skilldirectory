@@ -19,6 +19,7 @@ import Pricing from './pages/Pricing';
 import SubscriptionPlans from './pages/SubscriptionPlans';
 import SubscriptionSuccess from './pages/SubscriptionSuccess';
 import SubscriptionCancel from './pages/SubscriptionCancel';
+import AdminOutreach from './pages/AdminOutreach';
 
 // Components
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -84,6 +85,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/outreach"
+              element={
+                <ProtectedRoute>
+                  <AdminOutreach />
                 </ProtectedRoute>
               }
             />
