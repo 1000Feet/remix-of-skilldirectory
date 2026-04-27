@@ -6,15 +6,26 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "components/*": ["src/components/*"],
-      "pages/*": ["src/pages/*"],
-      "contexts/*": ["src/contexts/*"],
-      "integrations/*": ["src/integrations/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "components/*": [
+        "src/components/*"
+      ],
+      "pages/*": [
+        "src/pages/*"
+      ],
+      "contexts/*": [
+        "src/contexts/*"
+      ],
+      "integrations/*": [
+        "src/integrations/*"
+      ]
     },
     "noEmit": true
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }
